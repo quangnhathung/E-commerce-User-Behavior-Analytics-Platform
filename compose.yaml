@@ -294,6 +294,7 @@ services:
       - ./infra/config/hadoop/hdfs-site.xml:/etc/hadoop/hdfs-site.xml:ro
       - ./infra/config/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
       - ./infra/smoke:/opt/infra/smoke:ro
+      - ./app:/opt/app:ro
       - type: bind
         source: ${DATASET_PATH:?Run make setup}
         target: /opt/dataset

@@ -254,7 +254,7 @@ def driver_lock():
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as error:
-            raise InfraError("Another managed Spark smoke/persistence job is running") from error
+            raise InfraError("Another managed Spark job is running (smoke, persistence or application)") from error
         try:
             yield
         finally:
