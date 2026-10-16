@@ -45,10 +45,12 @@ Giữ nguyên mật khẩu/cluster ID đã sinh khi dùng lại volume hiện c�
 | `SPARK_WORKER_1_UI_PORT`    | `18081`                                             | Cổng host cho worker 1 UI                                                                                        |
 | `SPARK_WORKER_2_UI_PORT`    | `18082`                                             | Cổng host cho worker 2 UI                                                                                        |
 | `SPARK_APPLICATION_UI_PORT` | `14040`                                             | Cổng host cho driver UI, chỉ có khi ứng dụng chạy                                                                |
-| `MIN_AVAILABLE_RAM_GIB`     | `10`                                                | Ngưỡng preflight; không phải giới hạn bộ nhớ Docker                                                              |
+| `MIN_AVAILABLE_RAM_GIB`     | `7` | Ngưỡng preflight; tổng giới hạn container gồm init không được vượt ngưỡng này; không trực tiếp cấu hình Docker memory limit                                                              |
 | `MIN_DOCKER_DISK_GIB`       | `30`                                                | Ngưỡng dung lượng trống tại Docker data partition khi kiểm tra được                                              |
 
 Validator còn kiểm tra biến thiếu, giá trị chưa sinh, format project/cluster ID, cổng trong khoảng 1024–65535, cổng không trùng và image có digest.
+
+Mặc định ngân sách 7 GiB bao phủ 6,25 GiB limit thường trực và 704 MiB init. Giảm biến môi trường không tự giảm các limit trong Compose; preflight sẽ báo lỗi nếu tổng limit lớn hơn ngân sách. Xem [phân bổ RAM và cách áp dụng](10-memory-budget.md).
 
 Setup dùng hai lần `secrets.token_hex(24)` để sinh hai password 48 ký tự hex độc lập. Tài liệu chỉ mô tả cách sinh, không ghi giá trị local.
 
@@ -107,12 +109,13 @@ Raw có ba partition; DLQ có một partition. Init kiểm tra cả partitions, 
 | ----------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------- |
 | `spark.master`                                        | `spark://spark-master:7077`                   | Nộp task lên cụm Standalone                          |
 | `spark.submit.deployMode`                             | `client`                                      | Driver ở container nộp job                           |
-| `spark.cores.max`                                     | `4`                                           | Tổng số core tối đa cấp cho ứng dụng                 |
-| `spark.executor.cores`                                | `2`                                           | Số task slot CPU trên mỗi executor                   |
-| `spark.executor.memory`                               | `1g`                                          | Heap executor, không phải toàn bộ RSS của tiến trình |
-| `spark.driver.memory`                                 | `768m`                                        | Heap driver                                          |
-| `spark.sql.shuffle.partitions`                        | `8`                                           | Số partition mặc định cho nhiều phép shuffle SQL     |
-| `spark.default.parallelism`                           | `8`                                           | Parallelism mặc định cho một số thao tác RDD         |
+| `spark.cores.max`                                     | `2` | Tổng số core tối đa cấp cho ứng dụng                 |
+| `spark.executor.cores`                                | `1` | Số task slot CPU trên mỗi executor                   |
+| `spark.executor.memory`                               | `640m` | Heap executor, không phải toàn bộ RSS của tiến trình |
+| `spark.driver.memory`                                 | `512m` | Heap driver                                          |
+| `spark.driver.maxResultSize` | `128m` | Tổng kết quả serialize tối đa trả về driver cho mỗi action |
+| `spark.sql.shuffle.partitions`                        | `4` | Số partition mặc định cho nhiều phép shuffle SQL     |
+| `spark.default.parallelism`                           | `4` | Parallelism mặc định cho một số thao tác RDD         |
 | `spark.dynamicAllocation.enabled`                     | `false`                                       | Không tự thay số executor theo tải                   |
 | `spark.driver.host`                                   | `spark-client`                                | Địa chỉ executor gọi về driver                       |
 | `spark.driver.bindAddress`                            | `0.0.0.0`                                     | Driver lắng nghe trên các interface container        |
@@ -124,7 +127,7 @@ Raw có ba partition; DLQ có một partition. Init kiểm tra cả partitions, 
 | `spark.eventLog.dir`                                  | `hdfs://namenode:9000/ecommerce/spark-events` | Nơi giữ event log                                    |
 | `spark.pyspark.python`, `spark.pyspark.driver.python` | `/usr/local/bin/python3`                      | Đồng nhất Python driver/executor                     |
 
-Mỗi worker quảng bá 1 GiB executor memory, nhưng container được cấp 2 GiB. Phần chênh lệch còn cần cho worker daemon, Python, native buffer và JVM overhead; không nên tăng heap đến bằng container limit.
+Mỗi worker quảng bá một core và 640 MiB executor memory, container được cấp 1.280 MiB. Phần chênh lệch còn cần cho worker daemon, Python, native buffer và JVM overhead; không nên tăng heap đến bằng container limit.
 
 CPU quota container không phải thao tác ghim vào một core vật lý. Số core Spark cũng không có nghĩa tạo thêm CPU cho máy chủ.
 

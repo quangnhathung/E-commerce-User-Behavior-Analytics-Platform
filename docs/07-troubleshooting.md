@@ -28,6 +28,8 @@ Reset là thao tác xóa dữ liệu, không phải bước chẩn đoán mặc 
 
 Cấu hình dataset được preflight kiểm tra ngay cả trước build. Một clone repository không có CSV cần được cung cấp dataset trước; Git không lưu các file CSV/ZIP.
 
+Cấu hình hiện tại cần 7 GiB khả dụng lúc chưa chạy cụm, với tổng memory limit 6,9375 GiB. Nếu vẫn thấy `need 10.0 GiB`, kiểm tra riêng `MIN_AVAILABLE_RAM_GIB` trong `.env` và đổi thành `7`; `make setup` giữ nguyên file đã có. Không hạ thấp hơn tổng limit để bỏ qua kiểm tra. Khi thấy `Configured container memory limits ... exceeding`, cần chỉnh đồng bộ Compose và ngân sách. [Cách áp dụng và theo dõi OOM](10-memory-budget.md).
+
 ## 3. Lỗi setup và cấu hình
 
 | Triệu chứng                              | Ý nghĩa                            | Hướng xử lý                                                   |

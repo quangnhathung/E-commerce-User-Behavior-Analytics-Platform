@@ -50,6 +50,7 @@ File [infra/manage.py](../infra/manage.py) dùng thư viện chuẩn Python đ�
 | `parse_ps`          | Đọc output Compose ps dạng JSON array hoặc NDJSON                                 | Danh sách trạng thái                                 |
 | `configuration`     | Lấy Compose config dưới dạng JSON, giữ nội bộ                                     | Cấu hình đã expand                                   |
 | `statuses`          | Đọc trạng thái tất cả container project                                           | Danh sách service/health/exit code                   |
+| `check_memory_budget` | Đối chiếu tổng limit kể cả init với ngân sách; trừ phần service project đã chạy rồi kiểm tra RAM còn cần | Báo lỗi trước khi up nếu vượt budget/thiếu RAM |
 | `preflight`         | Kiểm tra daemon, môi trường, dataset, disk, RAM và cổng tùy action                | Báo cáo điều kiện khởi động                          |
 | `assert_services`   | Xác nhận chín service healthy, ba init exit 0 và readiness                        | Không tự khởi tạo phần bị thiếu                      |
 | `start`             | Preflight rồi Compose up có wait, sau đó assert                                   | Khởi động cụm                                        |
@@ -141,7 +142,7 @@ Caller chịu trách nhiệm truyền topic kiểm thử đúng; helper delete k
 
 ## 8. Test source
 
-[test_infrastructure.py](../infra/tests/test_infrastructure.py) có ba class: BootstrapTests, ComposeTests và HadoopConfigurationTests. Các test này không nộp Spark job hoặc gọi MongoDB.
+[test_infrastructure.py](../infra/tests/test_infrastructure.py) có bốn class: BootstrapTests, ComposeTests, HadoopConfigurationTests và SparkReadinessTests. Các test này không nộp Spark job hoặc gọi MongoDB.
 
 Đọc [tài liệu kiểm thử](06-testing.md) để biết từng nhóm chứng minh điều gì và những phần còn chưa xác minh runtime.
 

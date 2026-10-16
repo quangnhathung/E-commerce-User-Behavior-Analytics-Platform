@@ -68,6 +68,8 @@ Các kiểm tra của `make up`:
 | Docker data disk          | Kiểm tra tối thiểu 30 GiB nếu đường dẫn thấy được  |
 | Cổng host                 | Tránh giành cổng của dịch vụ khác                  |
 
+Preflight yêu cầu 7 GiB khi chưa có service project chạy, đồng thời kiểm tra tổng memory limit của toàn bộ service (kể cả init) không vượt ngân sách. Tổng limit hiện tại là 6,9375 GiB.
+
 Khi gọi `up` lại, script trừ giới hạn bộ nhớ của các service project đã chạy khỏi ngưỡng cần bổ sung. Đây là phép tính ngân sách dựa trên cấu hình, không phải phép đo RSS thực tế từng container.
 
 Cổng được publish bởi container đang chạy của chính project được nhận diện để không coi là xung đột. Nếu Docker data partition không nhìn thấy từ phiên hiện tại, script thông báo cần kiểm tra tại Docker host; không giả định dung lượng workspace chính là dung lượng Docker data.

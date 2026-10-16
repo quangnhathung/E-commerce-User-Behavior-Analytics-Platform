@@ -11,7 +11,7 @@ Tài liệu giải thích chi tiết từng thành phần, cấu hình, cách v�
 - Linux `amd64`, CPU hỗ trợ AVX, tối thiểu bốn CPU logic cho Docker.
 - Docker Engine đang chạy, Docker Compose hỗ trợ `up --wait` và plugin Docker Buildx cho BuildKit cache. Trên Arch Linux: `sudo pacman -S docker-buildx`.
 - Python 3.10+ và GNU Make trên máy chủ. Job trong container dùng Python 3.11.
-- Khoảng **10 GiB RAM khả dụng** trước khi khởi động toàn bộ cụm; chín container có tổng giới hạn 9 GiB, cộng tối đa 704 MiB cho ba job init.
+- Khoảng **7 GiB RAM khả dụng** trước khi khởi động toàn bộ cụm; chín container có tổng giới hạn 6,25 GiB, cộng tối đa 704 MiB cho ba job init, tổng 6,94 GiB. Docker daemon và hệ điều hành cần RAM riêng. Xem [ngân sách RAM](docs/10-memory-budget.md).
 - Ít nhất 30 GiB trống trên phân vùng chứa Docker data; nên dành thêm dung lượng khi nạp dataset.
 - Internet trong lần build đầu để tải base image, binary Apache và dependency.
 
@@ -58,12 +58,12 @@ make test
 
 | Service | Vai trò | Bộ nhớ tối đa |
 |---|---|---:|
-| `kafka` | Kafka 3.9.1, KRaft broker/controller | 1.024 MiB |
-| `namenode` | Hadoop 3.4.2 NameNode | 768 MiB |
-| `datanode-1`, `datanode-2` | HDFS DataNodes, replication 2 | 512 MiB mỗi node |
-| `spark-master` | Spark 3.5.7 Standalone master | 512 MiB |
-| `spark-worker-1`, `spark-worker-2` | Hai worker, hai core và 1 GiB executor mỗi node | 2.048 MiB mỗi worker |
-| `spark-client` | Python 3.11 / Java 17, chạy driver | 1.280 MiB |
+| `kafka` | Kafka 3.9.1, KRaft broker/controller | 768 MiB |
+| `namenode` | Hadoop 3.4.2 NameNode | 512 MiB |
+| `datanode-1`, `datanode-2` | HDFS DataNodes, replication 2 | 384 MiB mỗi node |
+| `spark-master` | Spark 3.5.7 Standalone master | 384 MiB |
+| `spark-worker-1`, `spark-worker-2` | Hai worker, một core và heap executor 640 MiB mỗi node | 1.280 MiB mỗi worker |
+| `spark-client` | Python 3.11 / Java 17, chạy driver | 896 MiB |
 | `mongodb` | MongoDB 8.0, authentication bật | 512 MiB |
 
 Ba job chạy một lần là `kafka-init`, `hdfs-init`, `mongo-init`. Init phải thoát với mã 0; `Exited (0)` là trạng thái đúng cho các job này.
@@ -179,7 +179,7 @@ Lệnh reset không gọi `docker system prune`, không xóa dataset và không 
 ## Xử lý lỗi
 
 - **Daemon không truy cập được:** kiểm tra `docker info` tại terminal thực thi. Một số môi trường agent chỉ cho phép một phần lệnh Docker; kiểm tra offline vẫn chạy được nhưng build/runtime cần quyền daemon thực tế.
-- **Thiếu RAM:** đóng bớt ứng dụng rồi chạy lại `make up`. Preflight trừ ngân sách container của project đã chạy để cho phép gọi `up` lại. Không tự giảm worker hoặc replication.
+- **Thiếu RAM:** mặc định cần 7 GiB khả dụng lúc chưa có container project chạy; tổng limit gồm init là 6,94 GiB. Đóng bớt ứng dụng rồi chạy lại `make up`. Không chỉ hạ ngưỡng môi trường xuống dưới tổng limit. Preflight trừ ngân sách container của project đã chạy để cho phép gọi `up` lại. Không tự giảm worker hoặc replication.
 - **Thiếu image:** chạy `make build`; `make up` không tự tải dependency hoặc build lại.
 - **Cổng bị chiếm:** đổi biến cổng host tương ứng trong `.env`; không dừng dịch vụ đang giữ cổng.
 - **Sai cluster ID:** khôi phục `.env` khớp volume; startup không tự format/xóa dữ liệu.

@@ -2,6 +2,8 @@
 
 [← Mục lục](README.md)
 
+Cấu hình RAM mặc định hiện là 7 GiB. Khi chuyển từ cấu hình cũ, chạy `make config`, `make test`, rồi `make up`, `make doctor`, `make smoke`; không cần build lại image. [Chi tiết ngân sách và theo dõi OOM](10-memory-budget.md).
+
 Tất cả lệnh bên dưới chạy từ thư mục gốc repository. Cấu hình local được tạo bởi `make setup`. Giá trị mong đợi là tiêu chí đối chiếu, không phải log đã đo trên cụm thật.
 
 ## 1. Khởi động lần đầu

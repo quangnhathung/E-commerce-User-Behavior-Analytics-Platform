@@ -19,10 +19,10 @@ Nguồn: [test_infrastructure.py](../infra/tests/test_infrastructure.py) và [te
 | Nhóm                     | Số test | Nội dung                                                                                                                                                                                  |
 | ------------------------ | ------: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | BootstrapTests           |       9 | Setup giữ credential/ID, quyền file 0600; không ghi đè file lỗi; từ chối cổng trùng/image không khóa; parse environment và ps; reset cần xác nhận; biến project không bị shell cha ghi đè |
-| ComposeTests             |       5 | Đủ topology và ngân sách RAM; cổng loopback duy nhất; dependency không vòng; DataNode volume riêng và bind mount read-only; runtime nhất quán và client không nhận root credential        |
+| ComposeTests             |       8 | Đủ topology và ngân sách RAM; cổng loopback duy nhất; dependency không vòng; DataNode volume riêng và bind mount read-only; runtime nhất quán và client không nhận root credential        |
 | HadoopConfigurationTests |       1 | Replication, hostname networking và số DataNode tối thiểu                                                                                                                                 |
 
-Bổ sung ba test `CachedDownloadTests` kiểm tra cache/hash/atomic publication mà không cần socket; bảy test `DownloadTests` dùng curl thật và HTTP server loopback để kiểm tra cache, mất kết nối, SIGTERM, HTTP Range/416, checksum sai và fallback. Tổng cộng 25 test. Nếu môi trường cấm tạo socket, bảy test HTTP được ghi rõ là skipped; các lỗi bind khác vẫn làm test thất bại. Cần Bash, curl và GNU coreutils trên host.
+Bổ sung ba test `CachedDownloadTests` kiểm tra cache/hash/atomic publication mà không cần socket; bảy test `DownloadTests` dùng curl thật và HTTP server loopback để kiểm tra cache, mất kết nối, SIGTERM, HTTP Range/416, checksum sai và fallback. Bổ sung hai test `SparkReadinessTests` xác nhận hai worker một core/640 MiB và từ chối worker thiếu tài nguyên. Các test Compose còn kiểm tra preflight với 8,3 GiB/thiếu RAM, credit đúng project và heap khớp tài nguyên quảng bá/container. Tổng cộng 30 test. Nếu môi trường cấm tạo socket, bảy test HTTP được ghi rõ là skipped; các lỗi bind khác vẫn làm test thất bại. Cần Bash, curl và GNU coreutils trên host.
 
 Các test Compose gọi CLI để expand cấu hình thành JSON từ template. Chúng không pull image, không tạo container hoặc truy cập daemon. Test setup dùng thư mục tạm; password được sinh trong test không được in ra.
 
@@ -35,7 +35,7 @@ Nguồn: [readiness.py](../infra/smoke/readiness.py).
 Phép kiểm tra xác nhận:
 
 1. Spark master JSON có đúng hai worker `ALIVE`.
-2. Mỗi worker báo hai core và ít nhất 1.024 MiB memory.
+2. Mỗi worker báo một core và ít nhất 640 MiB memory.
 3. JMX HDFS báo đúng hai live DataNode.
 4. Raw có ba partition, DLQ có một partition và mỗi partition có một replica.
 5. Application account MongoDB đọc được marker bootstrap.
@@ -180,7 +180,7 @@ Bộ kiểm thử hiện tại không chứng minh HA vật lý, tải cao, kh�
 
 ## 8. Trạng thái thực tế đã biết
 
-Phiên cập nhật tối ưu build đạt 18 test, với 7 test HTTP skipped vì sandbox cấm tạo socket. Compose config và cú pháp Python/Bash đã đạt. Các test HTTP cần chạy lại trên terminal host không bị giới hạn này. Build bị chặn ở truy cập Docker socket; khi rà soát tài liệu chưa có artifact runtime để xác nhận smoke/persistence.
+Phiên cập nhật ngân sách RAM đạt 23 test, với 7 test HTTP skipped vì sandbox cấm tạo socket. Compose config và cú pháp Python/Bash đã đạt. Các test HTTP cần chạy lại trên terminal host không bị giới hạn này. Build bị chặn ở truy cập Docker socket; khi rà soát tài liệu chưa có artifact runtime để xác nhận smoke/persistence.
 
 Sau khi chạy trên môi trường có daemon, dùng artifact thật để bổ sung bằng chứng. Không thay trạng thái “chưa xác minh” bằng “đạt” chỉ vì script đã được tạo.
 

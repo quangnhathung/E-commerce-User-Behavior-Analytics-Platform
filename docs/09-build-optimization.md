@@ -113,7 +113,7 @@ Build lại bình thường để tận dụng layer cache. Nếu cần kiểm t
 
 ## 7. Kiểm chứng và giới hạn hiện tại
 
-- `make test`: 25 test; phiên sandbox đạt 18, còn 7 test HTTP skipped vì môi trường cấm tạo socket loopback.
+- `make test`: 30 test; phiên sandbox đạt 23, còn 7 test HTTP skipped vì môi trường cấm tạo socket loopback.
 - Ba test cache dùng hashing thật và chạy script Bash thật, không cần network.
 - Bảy test HTTP dùng curl thật với server cục bộ: mất kết nối, ngắt bằng SIGTERM, tải tiếp, không hỗ trợ Range, 416, cache, checksum sai và fallback. Cần chạy lại trên host; kết quả skipped không chứng minh các nhánh này đã chạy thành công.
 - Compose config, cú pháp Python/Bash và diff whitespace đã được kiểm tra trong phiên cập nhật.

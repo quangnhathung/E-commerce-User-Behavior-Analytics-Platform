@@ -17,6 +17,7 @@ Bộ tài liệu này giải thích phần hạ tầng Docker đã được xây
 | [07 — Xử lý lỗi](07-troubleshooting.md)                    | Khi một bước thất bại thì kiểm tra và khắc phục thế nào?                                 |
 | [08 — Bản đồ mã nguồn](08-source-code-guide.md)            | Cần đọc hoặc sửa file/hàm nào để hiểu một chức năng?                                     |
 | [09 — Tối ưu build](09-build-optimization.md) | Nguyên nhân tải chậm, Buildx, nguồn tải, cache và cách build tiếp. |
+| [10 — Ngân sách RAM](10-memory-budget.md) | Phân bổ 7 GiB, cách áp dụng và theo dõi memory/OOM. |
 
 Người mới nên đọc 01 → 02 → 03 → 04. Khi chạy thực tế, dùng 05; khi đối chiếu kết quả, dùng 06; khi có lỗi, dùng 07. Tài liệu 08 dành cho người phát triển.
 
@@ -48,7 +49,7 @@ Tại thời điểm biên soạn ngày **16/10/2026**:
 | Hạng mục                           | Bằng chứng/trạng thái                                             |
 | ---------------------------------- | ----------------------------------------------------------------- |
 | Kiểm tra cấu hình Compose          | Đã đạt trong phiên triển khai                                     |
-| Kiểm thử offline                   | 18 kiểm tra đã đạt; 7 test HTTP skipped vì môi trường cấm socket                         |
+| Kiểm thử offline                   | 23 kiểm tra đã đạt; 7 test HTTP skipped vì môi trường cấm socket                         |
 | Cú pháp Python và Bash             | Đã kiểm tra                                                       |
 | Build image                        | Chưa xác minh thành công; bị chặn tại bước truy cập Docker daemon |
 | Smoke và persistence trên cụm thật | Chưa có kết quả chạy xác nhận                                     |

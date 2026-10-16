@@ -79,7 +79,7 @@ Checkpoint giữ tiến độ streaming. Trong kiểm thử, chạy lại cùng 
 - **Driver:** chạy chương trình điều khiển, tạo SparkSession và xây dựng kế hoạch thực thi.
 - **Executor:** thực hiện task và giữ dữ liệu trung gian của ứng dụng.
 
-Driver chạy trong `spark-client` bằng `spark-submit --deploy-mode client`. Hai worker có thể cấp hai executor, mỗi executor hai core và heap 1 GiB. Việc có hai worker trong UI chỉ chứng minh đăng ký tài nguyên; smoke test còn kiểm tra hostname thực thi task để xác nhận cả hai thực sự được dùng.
+Driver chạy trong `spark-client` bằng `spark-submit --deploy-mode client`. Hai worker có thể cấp hai executor, mỗi executor một core và heap 640 MiB. Việc có hai worker trong UI chỉ chứng minh đăng ký tài nguyên; smoke test còn kiểm tra hostname thực thi task để xác nhận cả hai thực sự được dùng.
 
 ## 7. HDFS NameNode và DataNode
 
