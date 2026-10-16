@@ -1,0 +1,9 @@
+.git
+.env
+.env.*
+Dataset
+artifacts
+logs
+**/__pycache__
+*.zip
+*.csv
