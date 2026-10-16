@@ -20,6 +20,7 @@ def process_start(pid):
 
 def run(token, command):
     record = Path(f"/tmp/ecommerce-job-{token}.json")
+    cancelled_record = Path(f"/tmp/ecommerce-cancel-{token}")
     child = None
     cancelled = False
 
@@ -34,13 +35,22 @@ def run(token, command):
 
     signal.signal(signal.SIGTERM, terminate)
     signal.signal(signal.SIGINT, terminate)
-    with record.open("x") as output:
-        json.dump({"pid": os.getpid(), "start": process_start(os.getpid())}, output)
+    if cancelled_record.exists():
+        cancelled_record.unlink(missing_ok=True)
+        return 130
+    # Publish a complete record atomically: cancel must never see partial JSON.
+    temporary = record.with_name(record.name + f".{os.getpid()}.tmp")
     try:
-        if cancelled:
+        with temporary.open("x") as output:
+            json.dump({"pid": os.getpid(), "start": process_start(os.getpid())}, output)
+        os.link(temporary, record)  # Fails if a record with this token already exists.
+    finally:
+        temporary.unlink(missing_ok=True)
+    try:
+        if cancelled or cancelled_record.exists():
             return 130
         child = subprocess.Popen(["timeout", "--kill-after=15s", "1800s", *command], start_new_session=True)
-        if cancelled:
+        if cancelled or cancelled_record.exists():
             terminate(signal.SIGTERM, None)
         code = child.wait()
         return 130 if cancelled else code
@@ -49,10 +59,14 @@ def run(token, command):
             os.killpg(child.pid, signal.SIGKILL)
             child.wait()
         record.unlink(missing_ok=True)
+        cancelled_record.unlink(missing_ok=True)
 
 
 def cancel(token):
     record = Path(f"/tmp/ecommerce-job-{token}.json")
+    # Also cancel a docker exec which has been submitted but whose wrapper has
+    # not yet started. A later wrapper with this token will refuse to launch.
+    Path(f"/tmp/ecommerce-cancel-{token}").touch(exist_ok=True)
     try:
         info = json.loads(record.read_text())
     except FileNotFoundError:
