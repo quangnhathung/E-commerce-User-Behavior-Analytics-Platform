@@ -22,7 +22,7 @@ Giai đoạn này triển khai luồng **Retailrocket CSV → HDFS Bronze → Sp
 
 Phạm vi kiểm tra chất lượng nội dung hiện là `events.csv`. Ba CSV còn lại được kiểm tra header, fingerprint và bản sao Bronze; chưa được chuyển thành bảng Silver.
 
-Producer replay, streaming nghiệp vụ, KPI/funnel, feature, ML, API và dashboard là các giai đoạn tiếp theo.
+Replay và streaming KPI đã có mã nguồn riêng; xem [docs/streaming](../streaming/README.md). Funnel, feature, ML, API và dashboard là các giai đoạn tiếp theo.
 
 ## Chạy sau khi đã build image
 
@@ -41,4 +41,4 @@ make ingest
 
 ## Trạng thái kiểm chứng
 
-Unit test và đối soát nguồn offline có kết quả riêng; hiện chưa có bằng chứng chạy ingest hoặc fixture trên HDFS thật trong phiên công cụ, vì truy cập Docker socket bị từ chối. Xem [bảng kiểm chứng](05-testing.md). Việc có mã nguồn hoặc kết quả kiểm tra CSV offline không đồng nghĩa Silver đã được tạo trong HDFS.
+Artifact hiện có xác nhận chín test fixture Spark/HDFS đã đạt và dọn dữ liệu, ingest lần đầu đã tạo 2.755.641 Silver event với hai worker và hai replica. Chưa có kết quả ingest lần hai xác nhận reuse trong phiên công cụ; Docker socket tại phiên này bị từ chối. Xem [bảng kiểm chứng](05-testing.md). Các kết quả này chưa nghiệm thu pipeline replay/streaming mới.

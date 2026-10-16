@@ -177,9 +177,11 @@ Luồng batch đã có mã nguồn trong [app/](../../app/). Hướng dẫn đ�
 | [app/jobs/](../../app/jobs/) | Entry point ingest và fixture tích hợp Spark/HDFS |
 | [app/tests/](../../app/tests/) | Kiểm thử offline và bộ tạo fixture |
 
-Các phần tiếp theo chưa có chức năng nghiệp vụ:
+Replay/streaming KPI có package riêng, manager host và test fixture; xem [bản đồ mã nguồn streaming](../streaming/01-architecture.md). Profile ZIP ingest giữ nguyên để dùng lại Silver hiện có.
 
-- Producer nghiệp vụ dùng listener nội bộ Kafka.
+Các điểm nối với phần tiếp theo:
+
+- Producer replay hiện dùng listener nội bộ Kafka; simulator là phần phát triển sau.
 - Job feature/training dùng Spark cluster, lưu artifact model trên HDFS.
 - Kết quả phục vụ API sau này được ghi bằng application account MongoDB.
 - Checkpoint nghiệp vụ có vùng riêng dưới `/ecommerce/checkpoints`.
