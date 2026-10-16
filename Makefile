@@ -1,6 +1,7 @@
 PYTHON ?= python3
 export CONFIRM
-.PHONY: setup build up doctor smoke persistence-test ps logs down reset config test versions ingest test-data
+export RUN_ID START END RATE
+.PHONY: setup build up doctor smoke persistence-test ps logs down reset config test versions ingest test-data prepare-demo stream replay stream-status test-stream
 
 setup build up doctor smoke persistence-test ps logs down reset config versions:
 	@$(PYTHON) infra/manage.py $@
@@ -11,3 +12,6 @@ test:
 
 ingest test-data:
 	@$(PYTHON) app/manage.py $@
+
+prepare-demo stream replay stream-status test-stream:
+	@$(PYTHON) app/streaming_manage.py $@
