@@ -1,0 +1,330 @@
+name: ${COMPOSE_PROJECT_NAME:-ecommerce-analytics}
+
+x-common: &common
+  init: true
+  restart: unless-stopped
+  networks: [analytics]
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+  stop_grace_period: 60s
+
+x-spark: &spark
+  <<: *common
+  image: ${COMPOSE_PROJECT_NAME:-ecommerce-analytics}/spark-runtime:3.5.7
+  build:
+    context: ./infra/spark
+  environment: &spark-env
+    HADOOP_CONF_DIR: /etc/hadoop
+    SPARK_DAEMON_MEMORY: 128m
+    PYSPARK_PYTHON: /usr/local/bin/python3
+    PYSPARK_DRIVER_PYTHON: /usr/local/bin/python3
+    SPARK_LOCAL_DIRS: /tmp/spark-local
+    SPARK_WORKER_DIR: /tmp/spark-work
+  volumes: &spark-volumes
+    - ./infra/config/hadoop/core-site.xml:/etc/hadoop/core-site.xml:ro
+    - ./infra/config/hadoop/hdfs-site.xml:/etc/hadoop/hdfs-site.xml:ro
+    - ./infra/config/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+
+x-hadoop: &hadoop
+  <<: *common
+  image: ${COMPOSE_PROJECT_NAME:-ecommerce-analytics}/hadoop:3.4.2
+  build:
+    context: ./infra/hadoop
+
+services:
+  kafka:
+    <<: *common
+    image: ${KAFKA_IMAGE:?Run make setup}
+    hostname: kafka
+    mem_limit: 1024m
+    cpus: 0.75
+    entrypoint: [bash, /opt/infra/kafka-start.sh]
+    environment:
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID:?Run make setup}
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:9092,HOST://:19092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,HOST://127.0.0.1:${KAFKA_HOST_PORT:-19092}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 48
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
+    ports:
+      - 127.0.0.1:${KAFKA_HOST_PORT:-19092}:19092
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+      - ./infra/scripts/kafka-start.sh:/opt/infra/kafka-start.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, 'KAFKA_HEAP_OPTS="-Xms32m -Xmx96m" /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:9092 >/dev/null 2>&1']
+      interval: 20s
+      timeout: 15s
+      retries: 10
+      start_period: 40s
+
+  kafka-init:
+    <<: *common
+    image: ${KAFKA_IMAGE:?Run make setup}
+    restart: "no"
+    mem_limit: 256m
+    cpus: 0.25
+    entrypoint: [bash, /opt/infra/kafka-init.sh]
+    environment:
+      KAFKA_HEAP_OPTS: -Xms32m -Xmx96m
+    volumes:
+      - ./infra/scripts/kafka-init.sh:/opt/infra/kafka-init.sh:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  namenode:
+    <<: *hadoop
+    hostname: namenode
+    mem_limit: 768m
+    cpus: 0.5
+    command: [namenode]
+    environment:
+      HADOOP_HEAPSIZE_MAX: "384"
+      HDFS_CLUSTER_ID: ${HDFS_CLUSTER_ID:?Run make setup}
+    ports:
+      - 127.0.0.1:${HDFS_UI_PORT:-9870}:9870
+    volumes:
+      - namenode-data:/var/lib/hadoop/name
+      - ./infra/config/hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./infra/config/hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
+    healthcheck:
+      test: [CMD-SHELL, 'curl -fsS --max-time 4 "http://localhost:9870/jmx?qry=Hadoop:service=NameNode,name=NameNodeStatus" | grep -q NameNodeStatus']
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  datanode-1:
+    <<: *hadoop
+    hostname: datanode-1
+    mem_limit: 512m
+    cpus: 0.5
+    command: [datanode]
+    environment:
+      HADOOP_HEAPSIZE_MAX: "256"
+      HDFS_CLUSTER_ID: ${HDFS_CLUSTER_ID:?Run make setup}
+    volumes:
+      - datanode-1-data:/var/lib/hadoop/data
+      - ./infra/config/hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./infra/config/hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
+    depends_on:
+      namenode:
+        condition: service_healthy
+    healthcheck: &datanode-health
+      test: [CMD-SHELL, 'curl -fsS --max-time 4 "http://localhost:9864/jmx?qry=Hadoop:service=DataNode,name=DataNodeInfo" | grep -q DataNodeInfo']
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  datanode-2:
+    <<: *hadoop
+    hostname: datanode-2
+    mem_limit: 512m
+    cpus: 0.5
+    command: [datanode]
+    environment:
+      HADOOP_HEAPSIZE_MAX: "256"
+      HDFS_CLUSTER_ID: ${HDFS_CLUSTER_ID:?Run make setup}
+    volumes:
+      - datanode-2-data:/var/lib/hadoop/data
+      - ./infra/config/hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./infra/config/hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
+    depends_on:
+      namenode:
+        condition: service_healthy
+    healthcheck: *datanode-health
+
+  hdfs-init:
+    <<: *hadoop
+    restart: "no"
+    mem_limit: 256m
+    cpus: 0.25
+    entrypoint: [bash, /opt/infra/hdfs-init.sh]
+    environment:
+      HADOOP_HEAPSIZE_MAX: "96"
+    volumes:
+      - ./infra/config/hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+      - ./infra/config/hadoop/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml:ro
+      - ./infra/scripts/hdfs-init.sh:/opt/infra/hdfs-init.sh:ro
+    depends_on:
+      namenode:
+        condition: service_healthy
+      datanode-1:
+        condition: service_healthy
+      datanode-2:
+        condition: service_healthy
+
+  spark-master:
+    <<: *spark
+    hostname: spark-master
+    mem_limit: 512m
+    cpus: 0.25
+    environment:
+      <<: *spark-env
+      SPARK_DAEMON_MEMORY: 192m
+    command: [/opt/spark/bin/spark-class, org.apache.spark.deploy.master.Master, --host, spark-master, --port, "7077", --webui-port, "18080"]
+    ports:
+      - 127.0.0.1:${SPARK_MASTER_UI_PORT:-18080}:18080
+    healthcheck:
+      test: [CMD, python3, -c, 'import urllib.request; urllib.request.urlopen("http://localhost:18080/json/", timeout=3).read()']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  spark-worker-1:
+    <<: *spark
+    hostname: spark-worker-1
+    mem_limit: 2048m
+    cpus: 2
+    environment:
+      <<: *spark-env
+      SPARK_PUBLIC_DNS: 127.0.0.1
+    command: [/opt/spark/bin/spark-class, org.apache.spark.deploy.worker.Worker, --host, spark-worker-1, --cores, "2", --memory, 1g, --webui-port, "18081", "spark://spark-master:7077"]
+    ports:
+      - 127.0.0.1:${SPARK_WORKER_1_UI_PORT:-18081}:18081
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python3, -c, 'import urllib.request; urllib.request.urlopen("http://localhost:18081/json/", timeout=3).read()']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  spark-worker-2:
+    <<: *spark
+    hostname: spark-worker-2
+    mem_limit: 2048m
+    cpus: 2
+    environment:
+      <<: *spark-env
+      SPARK_PUBLIC_DNS: 127.0.0.1
+    command: [/opt/spark/bin/spark-class, org.apache.spark.deploy.worker.Worker, --host, spark-worker-2, --cores, "2", --memory, 1g, --webui-port, "18082", "spark://spark-master:7077"]
+    ports:
+      - 127.0.0.1:${SPARK_WORKER_2_UI_PORT:-18082}:18082
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python3, -c, 'import urllib.request; urllib.request.urlopen("http://localhost:18082/json/", timeout=3).read()']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  mongodb:
+    <<: *common
+    image: ${MONGO_IMAGE:?Run make setup}
+    hostname: mongodb
+    mem_limit: 512m
+    cpus: 0.5
+    command: [mongod, --wiredTigerCacheSizeGB, "0.25", --bind_ip_all]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?Run make setup}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Run make setup}
+      NODE_OPTIONS: --max-old-space-size=128
+    ports:
+      - 127.0.0.1:${MONGO_HOST_PORT:-27018}:27017
+    volumes:
+      - mongodb-data:/data/db
+      - ./infra/scripts/mongo-health.js:/opt/infra/mongo-health.js:ro
+    healthcheck:
+      test: [CMD, mongosh, --quiet, /opt/infra/mongo-health.js]
+      interval: 20s
+      timeout: 10s
+      retries: 12
+      start_period: 40s
+
+  mongo-init:
+    <<: *spark
+    restart: "no"
+    mem_limit: 192m
+    cpus: 0.25
+    command: [python3, /opt/infra/mongo_init.py]
+    environment:
+      MONGO_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?Run make setup}
+      MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Run make setup}
+      MONGO_DATABASE: ${MONGO_DATABASE:-ecommerce}
+      MONGO_USERNAME: ${MONGO_USERNAME:?Run make setup}
+      MONGO_PASSWORD: ${MONGO_PASSWORD:?Run make setup}
+    volumes:
+      - ./infra/scripts/mongo_init.py:/opt/infra/mongo_init.py:ro
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  spark-client:
+    <<: *spark
+    hostname: spark-client
+    mem_limit: 1280m
+    cpus: 1
+    command: [sleep, infinity]
+    environment:
+      <<: *spark-env
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      HDFS_URI: hdfs://namenode:9000
+      SPARK_MASTER_URL: spark://spark-master:7077
+      MONGO_DATABASE: ${MONGO_DATABASE:-ecommerce}
+      MONGO_USERNAME: ${MONGO_USERNAME:?Run make setup}
+      MONGO_PASSWORD: ${MONGO_PASSWORD:?Run make setup}
+    volumes:
+      - ./infra/config/hadoop/core-site.xml:/etc/hadoop/core-site.xml:ro
+      - ./infra/config/hadoop/hdfs-site.xml:/etc/hadoop/hdfs-site.xml:ro
+      - ./infra/config/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      - ./infra/smoke:/opt/infra/smoke:ro
+      - type: bind
+        source: ${DATASET_PATH:?Run make setup}
+        target: /opt/dataset
+        read_only: true
+        bind:
+          create_host_path: false
+    ports:
+      - 127.0.0.1:${SPARK_APPLICATION_UI_PORT:-14040}:14040
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      hdfs-init:
+        condition: service_completed_successfully
+      mongo-init:
+        condition: service_completed_successfully
+      spark-worker-1:
+        condition: service_healthy
+      spark-worker-2:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python3, /opt/infra/smoke/readiness.py, --once]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+networks:
+  analytics:
+    driver: bridge
+
+volumes:
+  kafka-data:
+  namenode-data:
+  datanode-1-data:
+  datanode-2-data:
+  mongodb-data:
