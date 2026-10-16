@@ -40,7 +40,7 @@ Setup không truy cập daemon, chưa tạo container, topic hoặc thư mục H
 
 ## 3. Build: chuẩn bị phần mềm trong image
 
-Preflight build kiểm tra Docker/Compose, kiến trúc, CPU/AVX, dataset, cấu hình và disk khi thấy Docker data partition. Nó bỏ kiểm tra RAM khả dụng và xung đột cổng vì chưa khởi động toàn bộ cụm.
+`make build` kiểm tra plugin Buildx và từ chối `DOCKER_BUILDKIT=0` trước khi pull image. Preflight build kiểm tra Docker/Compose, kiến trúc, CPU/AVX, dataset, cấu hình và disk khi thấy Docker data partition. Nó bỏ kiểm tra RAM khả dụng và xung đột cổng vì chưa khởi động toàn bộ cụm.
 
 Sau đó:
 
@@ -50,7 +50,7 @@ Sau đó:
 - Các service cùng nhóm sử dụng lại image vừa build.
 - Ghi image ID/digest và phiên bản Docker/Compose vào `artifacts/infra/versions.json`.
 
-Hadoop build tải binary lean và kiểm tra checksum. Spark build cài Java, tải Spark, cài Python dependency, tải bốn JAR connector và kiểm tra checksum/dependency có sẵn.
+Hadoop build tải binary lean từ CDN Apache; Spark tải distribution từ mirror Huawei. Cả hai có nguồn dự phòng và kiểm tra SHA-512 đã khóa. Bước cài package được tách khỏi bước tải; binary và file tải dở nằm trong BuildKit cache. Spark cài Python dependency với pip cache rồi tải bốn JAR connector ở layer riêng. Xem [cơ chế build và tải tiếp](09-build-optimization.md).
 
 Build không ingest dataset hoặc chạy mô hình ML.
 

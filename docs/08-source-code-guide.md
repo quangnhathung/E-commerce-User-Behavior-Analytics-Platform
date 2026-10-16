@@ -32,7 +32,7 @@ Bắt đầu từ [Makefile](../Makefile), xem action tương ứng trong [manag
 | [README.md](../README.md)                           | Hướng dẫn chạy nhanh và cửa vào tài liệu                                                      |
 | [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md) | Kế hoạch sản phẩm đầy đủ, bao gồm các phần chưa được triển khai                               |
 
-Build hiện dùng context con `infra/hadoop` và `infra/spark`. Hai context có dockerignore riêng để chỉ gửi những file thực sự cần.
+Build dùng chung context `infra/`, chọn Dockerfile Hadoop/Spark qua Compose. [infra/.dockerignore](../infra/.dockerignore) chỉ cho phép file build cần thiết; dataset, credentials và runtime config không được gửi vào context.
 
 ## 3. Host-side manager
 
@@ -58,12 +58,12 @@ File [infra/manage.py](../infra/manage.py) dùng thư viện chuẩn Python đ�
 | `versions`          | Inspect image ID/digest và phiên bản công cụ                                      | versions.json; không dump runtime environment        |
 | `main`              | Phân luồng action CLI                                                             | Xâu chuỗi đúng tác vụ và kiểm soát reset             |
 
-`make build` bỏ kiểm tra RAM/cổng nhưng vẫn chạy các phần preflight khác. `make up` không build. `make persistence-test` gọi ba job và tự down/up giữa create và verify.
+`require_buildkit` kiểm tra plugin Buildx trước khi pull/build; chỉ áp dụng cho action build. `make build` bỏ kiểm tra RAM/cổng nhưng vẫn chạy các phần preflight khác. `make up` không build. `make persistence-test` gọi ba job và tự down/up giữa create và verify.
 
 ## 4. Hadoop image và entrypoint
 
 - [Dockerfile](../infra/hadoop/Dockerfile): Java 11, Hadoop 3.4.2 lean, checksum, user analytics và thư mục có quyền ghi.
-- [Dockerignore](../infra/hadoop/.dockerignore): chỉ đưa Dockerfile/entrypoint vào context.
+- [Downloader dùng chung](../infra/build/download.sh): SHA-512, cache hit, resume từng nguồn, retry/fallback và ngân sách thời gian.
 - [Entrypoint](../infra/hadoop/entrypoint.sh): nhận vai trò namenode/datanode, kiểm tra cluster ID, xử lý format NameNode ban đầu rồi exec Hadoop.
 - [core-site.xml](../infra/config/hadoop/core-site.xml): filesystem mặc định và static HTTP user.
 - [hdfs-site.xml](../infra/config/hadoop/hdfs-site.xml): replication, địa chỉ, đường dẫn dữ liệu, hostname và safe mode.
@@ -73,7 +73,7 @@ Entrypoint dùng `exec` để tiến trình Hadoop nhận tín hiệu dừng. N�
 ## 5. Spark image và dependency
 
 - [Dockerfile](../infra/spark/Dockerfile): Python 3.11, Java 17, Spark 3.5.7, user và thư mục scratch; cài dependency lúc build.
-- [Dockerignore](../infra/spark/.dockerignore): chỉ gửi Dockerfile, requirements và script tải JAR.
+- [Dockerignore dùng chung](../infra/.dockerignore): allowlist cho hai Dockerfile và script/dependency cần thiết.
 - [requirements.txt](../infra/spark/requirements.txt): confluent-kafka, pymongo, dnspython đã khóa phiên bản.
 - [download_jars.py](../infra/spark/download_jars.py): tải bốn JAR theo SHA-512; kiểm tra dependency được Spark distribution cung cấp sẵn.
 - [spark-defaults.conf](../infra/config/spark/spark-defaults.conf): master/driver/executor, network, parallelism, timezone và event log.

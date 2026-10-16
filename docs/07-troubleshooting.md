@@ -44,9 +44,15 @@ Không gửi nội dung file local có password vào issue/log chia sẻ. Chỉ 
 
 ## 4. Lỗi build và dependency
 
+### Tải rất chậm, bị ngắt hoặc thiếu Buildx
+
+Xem [hướng dẫn tối ưu build](09-build-optimization.md). Các dòng `Adding debian:...pem` là cập nhật CA bình thường; log curl cho biết bước tải binary. `make build` yêu cầu Buildx; trên Arch Linux dùng `sudo pacman -S docker-buildx`, kiểm tra `docker buildx version` rồi chạy lại.
+
+Build mới lưu file tải dở trong cache của builder; Ctrl+C rồi chạy lại `make build` có thể tiếp tục nếu cache còn. File tải dở từ Dockerfile cũ không tự chuyển vào cache mới.
+
 ### Tải binary/JAR hoặc checksum thất bại
 
-Kiểm tra network đến Apache Archive, Maven Central, PyPI và registry của base image. Nếu là lỗi tạm thời, thử build lại. Nếu checksum không khớp, kiểm tra đúng version/artifact; không bỏ bước checksum để làm build “qua”.
+Kiểm tra network đến `repo.huaweicloud.com`, `dlcdn.apache.org`, Apache Archive, Maven Central, PyPI và registry của base image. Downloader có hai lượt mỗi nguồn, phát hiện tốc độ thấp và ngân sách 30 phút mỗi binary; đọc log source/resume_bytes trước khi thử lại. Nếu là lỗi tạm thời, thử build lại. Nếu checksum không khớp, kiểm tra đúng version/artifact; không bỏ bước checksum để làm build “qua”.
 
 ### Image local chưa có
 

@@ -9,7 +9,7 @@ Tài liệu giải thích chi tiết từng thành phần, cấu hình, cách v�
 ## Yêu cầu
 
 - Linux `amd64`, CPU hỗ trợ AVX, tối thiểu bốn CPU logic cho Docker.
-- Docker Engine đang chạy và Docker Compose hỗ trợ `up --wait`.
+- Docker Engine đang chạy, Docker Compose hỗ trợ `up --wait` và plugin Docker Buildx cho BuildKit cache. Trên Arch Linux: `sudo pacman -S docker-buildx`.
 - Python 3.10+ và GNU Make trên máy chủ. Job trong container dùng Python 3.11.
 - Khoảng **10 GiB RAM khả dụng** trước khi khởi động toàn bộ cụm; chín container có tổng giới hạn 9 GiB, cộng tối đa 704 MiB cho ba job init.
 - Ít nhất 30 GiB trống trên phân vùng chứa Docker data; nên dành thêm dung lượng khi nạp dataset.
@@ -20,6 +20,7 @@ Kiểm tra daemon trong terminal dùng để chạy dự án:
 ```bash
 docker info
 docker compose version
+docker buildx version
 ```
 
 Nếu không truy cập được daemon, kiểm tra Docker context, trạng thái dịch vụ và quyền socket của môi trường đó. Script không tự thay quyền socket, thay nhóm người dùng hoặc dừng container dự án khác.
@@ -39,7 +40,7 @@ make smoke
 ```
 
 - `setup` tạo `.env` với quyền `0600`, sinh hai mật khẩu độc lập và Kafka cluster ID. Chạy lại giữ nguyên file hiện có; file thiếu cấu hình sẽ được báo lỗi để sửa thủ công.
-- `build` tải image Kafka/MongoDB theo digest và build Hadoop/Spark. Lần đầu cần tải binary Spark khoảng 382 MiB và Hadoop lean khoảng 489 MiB, cùng base image.
+- `build` kiểm tra Buildx, tải image Kafka/MongoDB theo digest và build Hadoop/Spark. Binary Spark khoảng 382 MiB được tải từ mirror Huawei; Hadoop lean khoảng 489 MiB từ CDN Apache, có nguồn dự phòng. BuildKit cache lưu binary đã xác minh và file tải dở để dùng lại. Xem [tối ưu build](docs/09-build-optimization.md).
 - `up` kiểm tra môi trường, khởi động các image đã build, đợi healthcheck và xác nhận ba tác vụ init hoàn tất.
 - `doctor` kiểm tra daemon, dataset, tài nguyên, cổng và readiness của cụm nếu đã khởi tạo.
 - `smoke` chạy kiểm tra dữ liệu thật giữa các dịch vụ, không tác động topic nghiệp vụ.
@@ -51,7 +52,7 @@ make config
 make test
 ```
 
-`make test` dùng thư viện chuẩn Python và Compose CLI để kiểm tra bootstrap, cấu hình, dependency graph, mount, cổng và tài nguyên. Các kiểm tra này không thay thế `make smoke` trên cụm đang chạy.
+`make test` dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils để kiểm tra bootstrap, cấu hình, cache và downloader. Test HTTP dùng socket loopback; nếu môi trường cấm tạo socket, bảy test này được ghi rõ là skipped. Các kiểm tra này không thay thế `make smoke` trên cụm đang chạy.
 
 ## Dịch vụ và phiên bản
 
