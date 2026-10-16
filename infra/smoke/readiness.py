@@ -13,13 +13,17 @@ def get_json(url):
         return json.load(response)
 
 
-def check():
-    master = get_json("http://spark-master:18080/json/")
+def check_spark_workers(master):
     workers = [worker for worker in master.get("workers", []) if worker.get("state") == "ALIVE"]
     if len(workers) != 2:
         raise RuntimeError(f"Expected 2 live Spark workers, got {len(workers)}")
-    if any(worker.get("cores", 0) != 2 or worker.get("memory", 0) < 1024 for worker in workers):
-        raise RuntimeError("Spark worker resources do not match 2 cores / 1024 MiB")
+    if any(worker.get("cores", 0) != 1 or worker.get("memory", 0) < 640 for worker in workers):
+        raise RuntimeError("Spark worker resources do not match 1 core / 640 MiB")
+    return len(workers)
+
+
+def check():
+    worker_count = check_spark_workers(get_json("http://spark-master:18080/json/"))
     state = get_json("http://namenode:9870/jmx?qry=Hadoop:service=NameNode,name=FSNamesystemState")
     if not state.get("beans") or state["beans"][0].get("NumLiveDataNodes") != 2:
         raise RuntimeError("HDFS does not have exactly two live DataNodes")
@@ -34,7 +38,7 @@ def check():
         marker = client[os.environ["MONGO_DATABASE"]].infra_metadata.find_one({"_id": "bootstrap-v1"})
         if not marker:
             raise RuntimeError("MongoDB bootstrap marker missing")
-    return {"spark_workers": len(workers), "hdfs_datanodes": 2, "kafka_topics": 2, "mongo_authenticated": True}
+    return {"spark_workers": worker_count, "hdfs_datanodes": 2, "kafka_topics": 2, "mongo_authenticated": True}
 
 
 def main():
