@@ -14,17 +14,20 @@ Không suy diễn kết quả tầng trước thành bằng chứng của tầng
 
 ## 2. Kiểm thử offline
 
-Nguồn: [test_infrastructure.py](../../infra/tests/test_infrastructure.py) và [test_download.py](../../infra/tests/test_download.py).
+Nguồn: [test_infrastructure.py](../../infra/tests/test_infrastructure.py), [test_download.py](../../infra/tests/test_download.py) và [test_kafka_admin.py](../../infra/tests/test_kafka_admin.py).
 
 | Nhóm                     | Số test | Nội dung                                                                                                                                                                                  |
 | ------------------------ | ------: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | BootstrapTests           |       9 | Setup giữ credential/ID, quyền file 0600; không ghi đè file lỗi; từ chối cổng trùng/image không khóa; parse environment và ps; reset cần xác nhận; biến project không bị shell cha ghi đè |
 | ComposeTests             |       8 | Đủ topology và ngân sách RAM; cổng loopback duy nhất; dependency không vòng; DataNode volume riêng và bind mount read-only; runtime nhất quán và client không nhận root credential        |
 | HadoopConfigurationTests |       1 | Replication, hostname networking và số DataNode tối thiểu                                                                                                                                 |
+| KafkaAdminTests          |       4 | Giữ AdminClient sống khi chờ Future tạo/xóa topic; truyền nguyên lỗi broker và timeout                                                                                                     |
 
-Bổ sung ba test `CachedDownloadTests` kiểm tra cache/hash/atomic publication mà không cần socket; bảy test `DownloadTests` dùng curl thật và HTTP server loopback để kiểm tra cache, mất kết nối, SIGTERM, HTTP Range/416, checksum sai và fallback. Bổ sung hai test `SparkReadinessTests` xác nhận hai worker một core/640 MiB và từ chối worker thiếu tài nguyên. Các test Compose còn kiểm tra preflight với 8,3 GiB/thiếu RAM, credit đúng project và heap khớp tài nguyên quảng bá/container. Suite hạ tầng có 30 test. Nếu môi trường cấm tạo socket, bảy test HTTP được ghi rõ là skipped; các lỗi bind khác vẫn làm test thất bại. Cần Bash, curl và GNU coreutils trên host.
+Bổ sung ba test `CachedDownloadTests` kiểm tra cache/hash/atomic publication mà không cần socket; bảy test `DownloadTests` dùng curl thật và HTTP server loopback để kiểm tra cache, mất kết nối, SIGTERM, HTTP Range/416, checksum sai và fallback. Bổ sung hai test `SparkReadinessTests` xác nhận hai worker một core/640 MiB và từ chối worker thiếu tài nguyên. Các test Compose còn kiểm tra preflight với 8,3 GiB/thiếu RAM, credit đúng project và heap khớp tài nguyên quảng bá/container. Suite hạ tầng có 34 test. Nếu môi trường cấm tạo socket, bảy test HTTP được ghi rõ là skipped; các lỗi bind khác vẫn làm test thất bại. Cần Bash, curl và GNU coreutils trên host.
 
-`make test` còn chạy 16 test ứng dụng, tổng cộng 46 test. Hợp đồng sự kiện, snapshot, đóng gói và hủy job được mô tả trong [kiểm thử dữ liệu](../data/05-testing.md). Kiểm thử Spark/HDFS của ingestion chạy riêng bằng `make test-data`.
+`make test` còn chạy 16 test ứng dụng, tổng cộng 50 test. Hợp đồng sự kiện, snapshot, đóng gói và hủy job được mô tả trong [kiểm thử dữ liệu](../data/05-testing.md). Kiểm thử Spark/HDFS của ingestion chạy riêng bằng `make test-data`.
+
+Test Kafka dùng dependency giả lập và Future chỉ giữ weak reference tới client; ép garbage collection trước khi chờ kết quả. Các test đã tái hiện client bị giải phóng sớm trên mã cũ. Chúng không cần cài `confluent-kafka` hoặc `pymongo` trên host và không thay thế thao tác với broker thật trong smoke.
 
 Các test Compose gọi CLI để expand cấu hình thành JSON từ template. Chúng không pull image, không tạo container hoặc truy cập daemon. Test setup dùng thư mục tạm; password được sinh trong test không được in ra.
 
@@ -183,6 +186,8 @@ Bộ kiểm thử hạ tầng không chứng minh HA vật lý, tải cao, khả
 ## 8. Trạng thái thực tế đã biết
 
 Phiên cập nhật ngân sách RAM đạt 23 test, với 7 test HTTP skipped vì sandbox cấm tạo socket. Compose config và cú pháp Python/Bash đã đạt. Các test HTTP cần chạy lại trên terminal host không bị giới hạn này. Build bị chặn ở truy cập Docker socket; khi rà soát tài liệu chưa có artifact runtime để xác nhận smoke/persistence.
+
+Sau bản sửa vòng đời Kafka AdminClient, suite hạ tầng có 27 test đạt và 7 HTTP skipped; cộng 16 test ứng dụng thành 43 đạt/7 skipped. Bốn test Kafka mới thất bại trên mã cũ và đạt sau bản sửa. Log người dùng cung cấp đã xác nhận `make up` và `make doctor` đạt trên host, còn smoke trước sửa lỗi `_DESTROY` tại bước tạo topic. Lượt smoke sau sửa trong phiên công cụ bị chặn bởi quyền Docker socket, nên chưa có kết quả nghiệm thu bản sửa trên broker thật.
 
 Sau khi chạy trên môi trường có daemon, dùng artifact thật để bổ sung bằng chứng. Không thay trạng thái “chưa xác minh” bằng “đạt” chỉ vì script đã được tạo.
 

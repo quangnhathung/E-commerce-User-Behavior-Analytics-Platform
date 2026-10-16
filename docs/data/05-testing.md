@@ -76,7 +76,7 @@ Sau đó chạy lại smoke nếu cần xác nhận hạ tầng vẫn hoạt đ�
 | Hạng mục | Bằng chứng |
 | --- | --- |
 | Unit ứng dụng | 16 test đã đạt |
-| Suite hạ tầng | 23 test đạt, 7 test HTTP skipped vì sandbox cấm socket; tổng `make test` gồm 39 đạt và 7 skipped |
+| Suite hạ tầng | 27 test đạt, 7 test HTTP skipped vì sandbox cấm socket; tổng `make test` gồm 43 đạt và 7 skipped |
 | Đối soát toàn bộ CSV offline | Khớp baseline; không sử dụng Spark/HDFS |
 | Compose/Python/link docs | Được kiểm tra tĩnh trong phiên triển khai |
 | Fixture Spark/HDFS | Lệnh đã thử; bị từ chối truy cập Docker socket trước khi chạy |

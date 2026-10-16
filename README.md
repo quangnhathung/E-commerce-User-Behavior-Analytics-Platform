@@ -52,7 +52,7 @@ make config
 make test
 ```
 
-`make test` chạy 30 test hạ tầng và 16 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Không cần cài PySpark trên host. Test HTTP dùng socket loopback; nếu môi trường cấm tạo socket, bảy test này được ghi rõ là skipped. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
+`make test` chạy 34 test hạ tầng và 16 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Không cần cài PySpark trên host. Test HTTP dùng socket loopback; nếu môi trường cấm tạo socket, bảy test này được ghi rõ là skipped. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
 
 ## Nạp dữ liệu lịch sử
 

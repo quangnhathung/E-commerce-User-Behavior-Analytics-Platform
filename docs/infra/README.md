@@ -51,7 +51,7 @@ Tại thời điểm biên soạn ngày **16/10/2026**:
 | Hạng mục                           | Bằng chứng/trạng thái                                             |
 | ---------------------------------- | ----------------------------------------------------------------- |
 | Kiểm tra cấu hình Compose          | Đã đạt trong phiên triển khai                                     |
-| Kiểm thử offline hạ tầng           | 23 kiểm tra đã đạt; 7 test HTTP skipped vì môi trường cấm socket                         |
+| Kiểm thử offline hạ tầng           | 27 kiểm tra đã đạt; 7 test HTTP skipped vì môi trường cấm socket                         |
 | Cú pháp Python và Bash             | Đã kiểm tra                                                       |
 | Build image                        | Chưa xác minh thành công; bị chặn tại bước truy cập Docker daemon |
 | Smoke và persistence trên cụm thật | Chưa có kết quả chạy xác nhận                                     |
