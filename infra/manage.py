@@ -155,6 +155,24 @@ def statuses():
     return parse_ps(execute(compose("ps", "--all", "--format", "json"), capture=True, timeout=30))
 
 
+def check_memory_budget(env, services, running, *, available, daemon_total):
+    """Check configured limits including init, then the budget still needed on the host."""
+    minimum = float(env["MIN_AVAILABLE_RAM_GIB"]) * 1024 ** 3
+    configured = sum(int(service.get("mem_limit", 0)) for service in services.values())
+    if configured > minimum:
+        raise InfraError(f"Configured container memory limits total {configured / 1024 ** 3:.2f} GiB, "
+                         f"exceeding MIN_AVAILABLE_RAM_GIB={minimum / 1024 ** 3:.2f}. "
+                         "Reduce container limits or raise the memory budget.")
+    reserved = sum(int(services[name].get("mem_limit", 0))
+                   for name in running if name in LONG_RUNNING and name in services)
+    needed = max(0, minimum - reserved)
+    if daemon_total < minimum:
+        raise InfraError("Docker daemon memory is below MIN_AVAILABLE_RAM_GIB")
+    if available < needed:
+        raise InfraError(f"Only {available / 1024 ** 3:.1f} GiB available; need {needed / 1024 ** 3:.1f} GiB "
+                         "for the remaining budget. Free host memory before starting.")
+
+
 def preflight(env, *, resources=True, ports=True):
     if platform.system() != "Linux" or platform.machine() not in ("x86_64", "amd64"):
         raise InfraError("This infrastructure targets Linux amd64")
@@ -182,16 +200,10 @@ def preflight(env, *, resources=True, ports=True):
     current = statuses()
     running = {row["Service"] for row in current if row.get("State") == "running"}
     if resources:
-        minimum = float(env["MIN_AVAILABLE_RAM_GIB"]) * 1024 ** 3
         available = next(int(line.split()[1]) * 1024 for line in Path("/proc/meminfo").read_text().splitlines()
                          if line.startswith("MemAvailable:"))
-        reserved = sum(int(config["services"][name].get("mem_limit", 0)) for name in running if name in LONG_RUNNING)
-        needed = max(0, minimum - reserved)
-        if info.get("MemTotal", 0) < minimum:
-            raise InfraError("Docker daemon memory is below MIN_AVAILABLE_RAM_GIB")
-        if available < needed:
-            raise InfraError(f"Only {available / 1024 ** 3:.1f} GiB available; need {needed / 1024 ** 3:.1f} GiB "
-                             "for the remaining budget. Free host memory before starting.")
+        check_memory_budget(env, config["services"], running,
+                            available=available, daemon_total=info.get("MemTotal", 0))
     docker_root = Path(info.get("DockerRootDir", "/var/lib/docker"))
     try:
         free = shutil.disk_usage(docker_root).free
@@ -242,7 +254,7 @@ def driver_lock():
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as error:
-            raise InfraError("Another managed Spark smoke/persistence job is running") from error
+            raise InfraError("Another managed Spark job is running (smoke, persistence or application)") from error
         try:
             yield
         finally:
@@ -290,7 +302,7 @@ def require_buildkit():
     except InfraError as error:
         raise InfraError("Docker Buildx plugin is required before building. On Arch Linux: "
                          "sudo pacman -S docker-buildx; then check docker buildx version. "
-                         "See docs/09-build-optimization.md. " + str(error)) from error
+                         "See docs/infra/09-build-optimization.md. " + str(error)) from error
 
 
 def main():

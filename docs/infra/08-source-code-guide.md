@@ -18,25 +18,25 @@ Makefile
     → artifact trên host
 ```
 
-Bắt đầu từ [Makefile](../Makefile), xem action tương ứng trong [manager](../infra/manage.py), sau đó xem service trong [Compose](../compose.yaml).
+Bắt đầu từ [Makefile](../../Makefile), xem action tương ứng trong [manager](../../infra/manage.py), sau đó xem service trong [Compose](../../compose.yaml).
 
 ## 2. Các file ở gốc
 
 | File                                                | Công dụng                                                                                     |
 | --------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| [Makefile](../Makefile)                             | Giao diện lệnh nhất quán; action quản lý gọi Python, test gọi unittest trực tiếp              |
-| [compose.yaml](../compose.yaml)                     | Topology, network, image/build, command, environment, port, volume, healthcheck và dependency |
-| [.env.example](../.env.example)                     | Danh mục cấu hình công khai, image đã khóa, placeholder credential                            |
-| [.gitignore](../.gitignore)                         | Loại cấu hình local, CSV/ZIP, cache và artifact phát sinh khỏi Git                            |
-| [.dockerignore](../.dockerignore)                   | Loại dữ liệu/cấu hình không cần khỏi root build context nếu context đó được dùng              |
-| [README.md](../README.md)                           | Hướng dẫn chạy nhanh và cửa vào tài liệu                                                      |
-| [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md) | Kế hoạch sản phẩm đầy đủ, bao gồm các phần chưa được triển khai                               |
+| [Makefile](../../Makefile)                             | Giao diện lệnh nhất quán; action quản lý gọi Python, test gọi unittest trực tiếp              |
+| [compose.yaml](../../compose.yaml)                     | Topology, network, image/build, command, environment, port, volume, healthcheck và dependency |
+| [.env.example](../../.env.example)                     | Danh mục cấu hình công khai, image đã khóa, placeholder credential                            |
+| [.gitignore](../../.gitignore)                         | Loại cấu hình local, CSV/ZIP, cache và artifact phát sinh khỏi Git                            |
+| [.dockerignore](../../.dockerignore)                   | Loại dữ liệu/cấu hình không cần khỏi root build context nếu context đó được dùng              |
+| [README.md](../../README.md)                           | Hướng dẫn chạy nhanh và cửa vào tài liệu                                                      |
+| [IMPLEMENTATION_PLAN.md](../../IMPLEMENTATION_PLAN.md) | Kế hoạch sản phẩm đầy đủ, bao gồm các phần chưa được triển khai                               |
 
-Build dùng chung context `infra/`, chọn Dockerfile Hadoop/Spark qua Compose. [infra/.dockerignore](../infra/.dockerignore) chỉ cho phép file build cần thiết; dataset, credentials và runtime config không được gửi vào context.
+Build dùng chung context `infra/`, chọn Dockerfile Hadoop/Spark qua Compose. [infra/.dockerignore](../../infra/.dockerignore) chỉ cho phép file build cần thiết; dataset, credentials và runtime config không được gửi vào context.
 
 ## 3. Host-side manager
 
-File [infra/manage.py](../infra/manage.py) dùng thư viện chuẩn Python để điều khiển Docker CLI; không gọi Docker API trực tiếp.
+File [infra/manage.py](../../infra/manage.py) dùng thư viện chuẩn Python để điều khiển Docker CLI; không gọi Docker API trực tiếp.
 
 | Hàm/nhóm            | Làm gì?                                                                           | Side effect hoặc đầu ra                              |
 | ------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------- |
@@ -50,6 +50,7 @@ File [infra/manage.py](../infra/manage.py) dùng thư viện chuẩn Python đ�
 | `parse_ps`          | Đọc output Compose ps dạng JSON array hoặc NDJSON                                 | Danh sách trạng thái                                 |
 | `configuration`     | Lấy Compose config dưới dạng JSON, giữ nội bộ                                     | Cấu hình đã expand                                   |
 | `statuses`          | Đọc trạng thái tất cả container project                                           | Danh sách service/health/exit code                   |
+| `check_memory_budget` | Đối chiếu tổng limit kể cả init với ngân sách; trừ phần service project đã chạy rồi kiểm tra RAM còn cần | Báo lỗi trước khi up nếu vượt budget/thiếu RAM |
 | `preflight`         | Kiểm tra daemon, môi trường, dataset, disk, RAM và cổng tùy action                | Báo cáo điều kiện khởi động                          |
 | `assert_services`   | Xác nhận chín service healthy, ba init exit 0 và readiness                        | Không tự khởi tạo phần bị thiếu                      |
 | `start`             | Preflight rồi Compose up có wait, sau đó assert                                   | Khởi động cụm                                        |
@@ -62,21 +63,21 @@ File [infra/manage.py](../infra/manage.py) dùng thư viện chuẩn Python đ�
 
 ## 4. Hadoop image và entrypoint
 
-- [Dockerfile](../infra/hadoop/Dockerfile): Java 11, Hadoop 3.4.2 lean, checksum, user analytics và thư mục có quyền ghi.
-- [Downloader dùng chung](../infra/build/download.sh): SHA-512, cache hit, resume từng nguồn, retry/fallback và ngân sách thời gian.
-- [Entrypoint](../infra/hadoop/entrypoint.sh): nhận vai trò namenode/datanode, kiểm tra cluster ID, xử lý format NameNode ban đầu rồi exec Hadoop.
-- [core-site.xml](../infra/config/hadoop/core-site.xml): filesystem mặc định và static HTTP user.
-- [hdfs-site.xml](../infra/config/hadoop/hdfs-site.xml): replication, địa chỉ, đường dẫn dữ liệu, hostname và safe mode.
+- [Dockerfile](../../infra/hadoop/Dockerfile): Java 11, Hadoop 3.4.2 lean, checksum, user analytics và thư mục có quyền ghi.
+- [Downloader dùng chung](../../infra/build/download.sh): SHA-512, cache hit, resume từng nguồn, retry/fallback và ngân sách thời gian.
+- [Entrypoint](../../infra/hadoop/entrypoint.sh): nhận vai trò namenode/datanode, kiểm tra cluster ID, xử lý format NameNode ban đầu rồi exec Hadoop.
+- [core-site.xml](../../infra/config/hadoop/core-site.xml): filesystem mặc định và static HTTP user.
+- [hdfs-site.xml](../../infra/config/hadoop/hdfs-site.xml): replication, địa chỉ, đường dẫn dữ liệu, hostname và safe mode.
 
 Entrypoint dùng `exec` để tiến trình Hadoop nhận tín hiệu dừng. Nó không chạy cụm bằng SSH hoặc script daemon background.
 
 ## 5. Spark image và dependency
 
-- [Dockerfile](../infra/spark/Dockerfile): Python 3.11, Java 17, Spark 3.5.7, user và thư mục scratch; cài dependency lúc build.
-- [Dockerignore dùng chung](../infra/.dockerignore): allowlist cho hai Dockerfile và script/dependency cần thiết.
-- [requirements.txt](../infra/spark/requirements.txt): confluent-kafka, pymongo, dnspython đã khóa phiên bản.
-- [download_jars.py](../infra/spark/download_jars.py): tải bốn JAR theo SHA-512; kiểm tra dependency được Spark distribution cung cấp sẵn.
-- [spark-defaults.conf](../infra/config/spark/spark-defaults.conf): master/driver/executor, network, parallelism, timezone và event log.
+- [Dockerfile](../../infra/spark/Dockerfile): Python 3.11, Java 17, Spark 3.5.7, user và thư mục scratch; cài dependency lúc build.
+- [Dockerignore dùng chung](../../infra/.dockerignore): allowlist cho hai Dockerfile và script/dependency cần thiết.
+- [requirements.txt](../../infra/spark/requirements.txt): confluent-kafka, pymongo, dnspython đã khóa phiên bản.
+- [download_jars.py](../../infra/spark/download_jars.py): tải bốn JAR theo SHA-512; kiểm tra dependency được Spark distribution cung cấp sẵn.
+- [spark-defaults.conf](../../infra/config/spark/spark-defaults.conf): master/driver/executor, network, parallelism, timezone và event log.
 
 Bốn JAR bổ sung là Kafka SQL connector, Kafka token provider, kafka-clients và commons-pool2. Hadoop runtime, spark-tags, jsr305, SLF4J và thư viện nén dùng từ bản Spark đã tải để tránh cài lặp phiên bản khác.
 
@@ -86,11 +87,11 @@ Master, worker và client chạy khác command nhưng dùng cùng image. Mongo i
 
 | File                                                | Công dụng và điểm quan trọng                                         |
 | --------------------------------------------------- | -------------------------------------------------------------------- |
-| [kafka-start.sh](../infra/scripts/kafka-start.sh)   | So cluster ID khi metadata tồn tại rồi gọi launcher chính thức Kafka |
-| [kafka-init.sh](../infra/scripts/kafka-init.sh)     | Tạo topic nếu thiếu, đọc lại và kiểm tra partitions/RF/retention     |
-| [hdfs-init.sh](../infra/scripts/hdfs-init.sh)       | Đợi hai DataNode/safe mode OFF, tạo thư mục HDFS                     |
-| [mongo-health.js](../infra/scripts/mongo-health.js) | Xác thực root từ environment và ping trong healthcheck               |
-| [mongo_init.py](../infra/scripts/mongo_init.py)     | Tạo app user nếu thiếu, marker bootstrap và xác minh app credential  |
+| [kafka-start.sh](../../infra/scripts/kafka-start.sh)   | So cluster ID khi metadata tồn tại rồi gọi launcher chính thức Kafka |
+| [kafka-init.sh](../../infra/scripts/kafka-init.sh)     | Tạo topic nếu thiếu, đọc lại và kiểm tra partitions/RF/retention     |
+| [hdfs-init.sh](../../infra/scripts/hdfs-init.sh)       | Đợi hai DataNode/safe mode OFF, tạo thư mục HDFS                     |
+| [mongo-health.js](../../infra/scripts/mongo-health.js) | Xác thực root từ environment và ping trong healthcheck               |
+| [mongo_init.py](../../infra/scripts/mongo_init.py)     | Tạo app user nếu thiếu, marker bootstrap và xác minh app credential  |
 
 Những script này tạo nền tảng, không xử lý event thương mại điện tử.
 
@@ -98,7 +99,7 @@ Những script này tạo nền tảng, không xử lý event thương mại đi
 
 ### Common helpers
 
-[common.py](../infra/smoke/common.py):
+[common.py](../../infra/smoke/common.py):
 
 | Hàm              | Vai trò                                                           |
 | ---------------- | ----------------------------------------------------------------- |
@@ -114,7 +115,7 @@ Caller chịu trách nhiệm truyền topic kiểm thử đúng; helper delete k
 
 ### Readiness
 
-[readiness.py](../infra/smoke/readiness.py):
+[readiness.py](../../infra/smoke/readiness.py):
 
 - `get_json` đọc endpoint JSON với timeout.
 - `check` kiểm tra Spark, HDFS, Kafka và MongoDB.
@@ -122,7 +123,7 @@ Caller chịu trách nhiệm truyền topic kiểm thử đúng; helper delete k
 
 ### Smoke pipeline
 
-[pipeline.py](../infra/smoke/pipeline.py):
+[pipeline.py](../../infra/smoke/pipeline.py):
 
 - `executor_hostname` chạy ở executor để thu hostname thực thi task.
 - `main` tạo fixture, kiểm tra Kafka, nộp Spark job, đọc/ghi HDFS, upsert MongoDB, kiểm tra replica và cleanup.
@@ -131,7 +132,7 @@ Caller chịu trách nhiệm truyền topic kiểm thử đúng; helper delete k
 
 ### Persistence
 
-[persistence.py](../infra/smoke/persistence.py):
+[persistence.py](../../infra/smoke/persistence.py):
 
 - Action `create` ghi marker vào ba storage.
 - Action `verify` đọc và đối chiếu token.
@@ -141,7 +142,7 @@ Caller chịu trách nhiệm truyền topic kiểm thử đúng; helper delete k
 
 ## 8. Test source
 
-[test_infrastructure.py](../infra/tests/test_infrastructure.py) có ba class: BootstrapTests, ComposeTests và HadoopConfigurationTests. Các test này không nộp Spark job hoặc gọi MongoDB.
+[test_infrastructure.py](../../infra/tests/test_infrastructure.py) có bốn class: BootstrapTests, ComposeTests, HadoopConfigurationTests và SparkReadinessTests. Các test này không nộp Spark job hoặc gọi MongoDB.
 
 Đọc [tài liệu kiểm thử](06-testing.md) để biết từng nhóm chứng minh điều gì và những phần còn chưa xác minh runtime.
 
@@ -160,13 +161,28 @@ Caller chịu trách nhiệm truyền topic kiểm thử đúng; helper delete k
 
 Thay topology cần cập nhật đồng bộ các phép kiểm tra đang cố ý yêu cầu đúng hai worker/hai DataNode. Không chỉ đổi Compose rồi bỏ qua lỗi test.
 
-## 10. Điểm nối với giai đoạn tiếp theo
+## 10. Ứng dụng batch và điểm nối tiếp theo
+
+Luồng batch đã có mã nguồn trong [app/](../../app/). Hướng dẫn đầy đủ: [tài liệu dữ liệu](../data/README.md).
+
+| File/module | Công dụng |
+| --- | --- |
+| [app/manage.py](../../app/manage.py) | CLI host, preflight, khóa driver, submit job, log và report local |
+| [app/package_code.py](../../app/package_code.py) | ZIP Python tái lập được để phân phối dependency đến executor |
+| [app/run_job.py](../../app/run_job.py) | Chạy/hủy process group Spark trong client, timeout và record UUID |
+| [contracts.py](../../app/ecommerce_analytics/contracts.py) | Header, fingerprint, version, event ID và quy tắc chuẩn hóa thuần Python |
+| [hdfs.py](../../app/ecommerce_analytics/hdfs.py) | Adapter Hadoop JVM: copy, checksum, replica, đọc metadata và rename không ghi đè |
+| [snapshots.py](../../app/ecommerce_analytics/snapshots.py) | Manifest, xác minh snapshot, staging và công bố nguyên tử |
+| [ingestion.py](../../app/ecommerce_analytics/ingestion.py) | Parse trên worker, loại trùng, Parquet, quality report và xác minh Silver |
+| [app/jobs/](../../app/jobs/) | Entry point ingest và fixture tích hợp Spark/HDFS |
+| [app/tests/](../../app/tests/) | Kiểm thử offline và bộ tạo fixture |
+
+Các phần tiếp theo chưa có chức năng nghiệp vụ:
 
 - Producer nghiệp vụ dùng listener nội bộ Kafka.
-- Batch ingestion đọc dataset tại `/opt/dataset` và ghi vào vùng HDFS phù hợp.
 - Job feature/training dùng Spark cluster, lưu artifact model trên HDFS.
 - Kết quả phục vụ API sau này được ghi bằng application account MongoDB.
 - Checkpoint nghiệp vụ có vùng riêng dưới `/ecommerce/checkpoints`.
-- Cần thêm source module, schema nghiệp vụ và tests tương ứng; không đổi smoke fixture thành toàn bộ ứng dụng sản phẩm.
+- Bổ sung module và tests theo từng luồng; giữ smoke fixture hạ tầng độc lập với ứng dụng sản phẩm.
 
-Các điểm nối này là hướng tích hợp, không phải chức năng nghiệp vụ đã có trong repository.
+Việc có mã batch không xác nhận ingest đã chạy thành công. Trạng thái và tiêu chí nghiệm thu nằm trong [kiểm thử dữ liệu](../data/05-testing.md).

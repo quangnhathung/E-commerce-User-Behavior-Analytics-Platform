@@ -24,13 +24,17 @@ def kafka():
 
 
 def create_topic(topic, partitions=3):
-    futures = kafka().create_topics([NewTopic(topic, num_partitions=partitions, replication_factor=1,
-                                            config={"retention.ms": "3600000"})], request_timeout=30)
+    # Admin requests are asynchronous; keep the client alive until they finish.
+    admin = kafka()
+    futures = admin.create_topics([NewTopic(topic, num_partitions=partitions, replication_factor=1,
+                                           config={"retention.ms": "3600000"})], request_timeout=30)
     futures[topic].result(timeout=40)
 
 
 def delete_topic(topic):
-    kafka().delete_topics([topic], request_timeout=30)[topic].result(timeout=40)
+    admin = kafka()
+    futures = admin.delete_topics([topic], request_timeout=30)
+    futures[topic].result(timeout=40)
 
 
 def publish(topic, records, partitions=3):

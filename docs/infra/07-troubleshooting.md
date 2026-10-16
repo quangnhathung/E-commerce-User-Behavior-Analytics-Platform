@@ -28,6 +28,8 @@ Reset là thao tác xóa dữ liệu, không phải bước chẩn đoán mặc 
 
 Cấu hình dataset được preflight kiểm tra ngay cả trước build. Một clone repository không có CSV cần được cung cấp dataset trước; Git không lưu các file CSV/ZIP.
 
+Cấu hình hiện tại cần 7 GiB khả dụng lúc chưa chạy cụm, với tổng memory limit 6,9375 GiB. Nếu vẫn thấy `need 10.0 GiB`, kiểm tra riêng `MIN_AVAILABLE_RAM_GIB` trong `.env` và đổi thành `7`; `make setup` giữ nguyên file đã có. Không hạ thấp hơn tổng limit để bỏ qua kiểm tra. Khi thấy `Configured container memory limits ... exceeding`, cần chỉnh đồng bộ Compose và ngân sách. [Cách áp dụng và theo dõi OOM](10-memory-budget.md).
+
 ## 3. Lỗi setup và cấu hình
 
 | Triệu chứng                              | Ý nghĩa                            | Hướng xử lý                                                   |
@@ -65,7 +67,7 @@ make up
 
 ### Không tìm được Kafka data source/JAR
 
-Đối chiếu [script JAR](../infra/spark/download_jars.py), phiên bản Spark/Scala và các image đang dùng:
+Đối chiếu [script JAR](../../infra/spark/download_jars.py), phiên bản Spark/Scala và các image đang dùng:
 
 ```bash
 docker compose images
@@ -173,6 +175,7 @@ Khi còn container của lần chạy lỗi, `doctor` có thể thất bại vì
 | Triệu chứng                        | Chẩn đoán                                                                             |
 | ---------------------------------- | ------------------------------------------------------------------------------------- |
 | Không có smoke.json                | Có thể job chưa chạy, exit khác 0 hoặc thiếu dòng INFRA_RESULT; đọc smoke.log         |
+| `_DESTROY`, `Handle is terminating` khi tạo/xóa topic | Kiểm tra vòng đời Kafka AdminClient trong helper; xem giải thích bên dưới |
 | Expected execution on both workers | Task không được quan sát trên đủ hai hostname cấu hình; kiểm tra worker và tài nguyên |
 | Parquet mismatch                   | Đọc/ghi hoặc checkpoint không đúng kỳ vọng fixture; xem Spark log và run path         |
 | Không đủ hai replica               | Kiểm tra block location, live DataNode và replication                                 |
@@ -182,6 +185,21 @@ Khi còn container của lần chạy lỗi, `doctor` có thể thất bại vì
 | Clean lỗi vì tài nguyên đã mất     | Cleanup có thể đã thành công một phần; xem trạng thái thực trước khi thử lại          |
 
 Sau lỗi persistence, giữ token/log trước khi chạy test mới vì tên artifact sẽ được ghi đè. Cách verify/clean bằng token nằm trong [hướng dẫn vận hành](05-operations.md).
+
+### Kafka `_DESTROY` tại bước tạo hoặc xóa topic
+
+Nếu `make doctor` đạt nhưng smoke lỗi tại `create_topic()` với `Handle is terminating: Local: Broker handle destroyed`, kiểm tra [common.py](../../infra/smoke/common.py). Cách gọi `kafka().create_topics(...)` hoặc `kafka().delete_topics(...)` tạo AdminClient tạm; client có thể bị giải phóng khi request bất đồng bộ vẫn còn chờ.
+
+Helper đã được sửa để giữ `admin = kafka()` trong cùng hàm đến khi `Future.result(timeout=40)` hoàn tất. Request timeout vẫn là 30 giây; lỗi broker và timeout vẫn được truyền tới caller. Smoke và persistence dùng chung helper này. Readiness gọi `list_topics()` đồng bộ, nên có thể đạt trước khi smoke gặp lỗi vòng đời ở thao tác bất đồng bộ.
+
+`infra/smoke/` được bind mount read-only vào Spark client. Sau khi cập nhật source, chạy trực tiếp:
+
+```bash
+make test
+make smoke
+```
+
+Bản sửa này không cần build lại image, restart cụm hoặc reset dữ liệu. Nếu xuất hiện lỗi mới sau bước tạo topic, dùng traceback và `artifacts/infra/smoke.log` mới để xác định bước tiếp theo. Report JSON cũ có thể còn sau lần thất bại; chỉ nghiệm thu lượt mới khi command thoát mã 0 và report khớp run mới.
 
 ## 11. Xác nhận đã phục hồi
 

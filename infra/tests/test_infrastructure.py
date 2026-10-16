@@ -9,6 +9,7 @@ import shutil
 import stat
 import subprocess
 import tempfile
+import types
 import unittest
 from unittest import mock
 import xml.etree.ElementTree as ET
@@ -137,10 +138,62 @@ class ComposeTests(unittest.TestCase):
     def test_complete_topology_and_memory_budget(self):
         self.assertEqual(manage.LONG_RUNNING | manage.INIT_SERVICES, set(self.services))
         total = sum(int(self.services[name]["mem_limit"]) for name in manage.LONG_RUNNING)
-        self.assertLessEqual(total, 9 * 1024 ** 3)
+        self.assertLessEqual(total, 6400 * 1024 ** 2)
         init_memory = sum(int(self.services[name]["mem_limit"]) for name in manage.INIT_SERVICES)
-        self.assertLessEqual(total + init_memory, 10 * 1024 ** 3)
+        self.assertLessEqual(total + init_memory, 7 * 1024 ** 3)
+        self.assertEqual("7", manage.read_env(ROOT / ".env.example")["MIN_AVAILABLE_RAM_GIB"])
         self.assertEqual(5, len(self.config["volumes"]))
+
+    def test_memory_preflight_accepts_available_ram_and_rejects_shortfalls(self):
+        gib = 1024 ** 3
+        env = {"MIN_AVAILABLE_RAM_GIB": "7"}
+        manage.check_memory_budget(env, self.services, set(), available=8.3 * gib, daemon_total=16 * gib)
+        with self.assertRaisesRegex(manage.InfraError, "need 7.0 GiB"):
+            manage.check_memory_budget(env, self.services, set(), available=6.5 * gib, daemon_total=16 * gib)
+        with self.assertRaisesRegex(manage.InfraError, "daemon memory"):
+            manage.check_memory_budget(env, self.services, set(), available=8.3 * gib, daemon_total=6 * gib)
+        with self.assertRaisesRegex(manage.InfraError, "exceeding MIN_AVAILABLE_RAM_GIB"):
+            manage.check_memory_budget({"MIN_AVAILABLE_RAM_GIB": "6.5"}, self.services, set(),
+                                       available=8.3 * gib, daemon_total=16 * gib)
+
+    def test_memory_preflight_credits_only_running_project_services(self):
+        gib = 1024 ** 3
+        env = {"MIN_AVAILABLE_RAM_GIB": "7"}
+        available = 7 * gib - int(self.services["kafka"]["mem_limit"])
+        manage.check_memory_budget(env, self.services, {"kafka", "unrelated"},
+                                   available=available, daemon_total=16 * gib)
+        with self.assertRaisesRegex(manage.InfraError, "remaining budget"):
+            manage.check_memory_budget(env, self.services, {"unrelated"},
+                                       available=available, daemon_total=16 * gib)
+
+    def test_spark_heaps_fit_advertised_worker_and_container_limits(self):
+        settings = dict(line.split() for line in (ROOT / "infra/config/spark/spark-defaults.conf").read_text().splitlines()
+                        if line.strip() and not line.startswith("#"))
+        heap = int(settings["spark.executor.memory"].removesuffix("m"))
+        executor_cores = int(settings["spark.executor.cores"])
+        total_cores = 0
+        for name in ("spark-worker-1", "spark-worker-2"):
+            worker = self.services[name]
+            command = worker["command"]
+            memory = int(command[command.index("--memory") + 1].removesuffix("m"))
+            cores = int(command[command.index("--cores") + 1])
+            self.assertLessEqual(heap, memory)
+            # Worker daemon and the executor/Python/native memory share a cgroup.
+            daemon_heap = int(worker["environment"]["SPARK_DAEMON_MEMORY"].removesuffix("m"))
+            self.assertGreater(int(worker["mem_limit"]), (heap + daemon_heap) * 1024 ** 2)
+            self.assertEqual(executor_cores, cores)
+            total_cores += cores
+        self.assertEqual(total_cores, int(settings["spark.cores.max"]))
+        driver_heap = int(settings["spark.driver.memory"].removesuffix("m"))
+        self.assertLess(driver_heap * 1024 ** 2, int(self.services["spark-client"]["mem_limit"]))
+        self.assertLess(int(settings["spark.driver.maxResultSize"].removesuffix("m")), driver_heap)
+        for name in ("namenode", "datanode-1", "datanode-2"):
+            self.assertLess(int(self.services[name]["environment"]["HADOOP_HEAPSIZE_MAX"]) * 1024 ** 2,
+                            int(self.services[name]["mem_limit"]))
+        kafka_heap = self.services["kafka"]["environment"]["KAFKA_HEAP_OPTS"].split("-Xmx")[1]
+        self.assertLess(int(kafka_heap.removesuffix("m")) * 1024 ** 2, int(self.services["kafka"]["mem_limit"]))
+        master_heap = self.services["spark-master"]["environment"]["SPARK_DAEMON_MEMORY"]
+        self.assertLess(int(master_heap.removesuffix("m")) * 1024 ** 2, int(self.services["spark-master"]["mem_limit"]))
 
     def test_ports_are_local_and_unique(self):
         ports = []
@@ -202,6 +255,29 @@ class HadoopConfigurationTests(unittest.TestCase):
         self.assertEqual("true", values["dfs.client.use.datanode.hostname"])
         self.assertEqual("true", values["dfs.datanode.use.datanode.hostname"])
         self.assertEqual("2", values["dfs.namenode.safemode.min.datanodes"])
+
+
+class SparkReadinessTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Readiness worker validation has no Kafka/Mongo dependency. Stub only
+        # these imports so host-side tests do not need container-only packages.
+        common = types.ModuleType("common")
+        common.kafka, common.mongo = mock.Mock(), mock.Mock()
+        spec = importlib.util.spec_from_file_location("infra_readiness", ROOT / "infra/smoke/readiness.py")
+        cls.readiness = importlib.util.module_from_spec(spec)
+        with mock.patch.dict("sys.modules", {"common": common}):
+            spec.loader.exec_module(cls.readiness)
+
+    def test_accepts_two_workers_in_reduced_memory_configuration(self):
+        worker = {"state": "ALIVE", "cores": 1, "memory": 640}
+        self.assertEqual(2, self.readiness.check_spark_workers({"workers": [worker, worker]}))
+
+    def test_rejects_missing_workers_or_insufficient_resources(self):
+        worker = {"state": "ALIVE", "cores": 1, "memory": 640}
+        for other in ({**worker, "state": "DEAD"}, {**worker, "memory": 639}, {**worker, "cores": 2}):
+            with self.subTest(other=other), self.assertRaises(RuntimeError):
+                self.readiness.check_spark_workers({"workers": [worker, other]})
 
 
 if __name__ == "__main__":

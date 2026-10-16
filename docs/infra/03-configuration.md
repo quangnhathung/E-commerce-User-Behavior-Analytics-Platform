@@ -2,13 +2,13 @@
 
 [← Mục lục](README.md)
 
-Nguồn giá trị là [template môi trường](../.env.example), [Compose](../compose.yaml), [Hadoop XML](../infra/config/hadoop/) và [Spark defaults](../infra/config/spark/spark-defaults.conf).
+Nguồn giá trị là [template môi trường](../../.env.example), [Compose](../../compose.yaml), [Hadoop XML](../../infra/config/hadoop/) và [Spark defaults](../../infra/config/spark/spark-defaults.conf).
 
 ## 1. Cấu hình trên host và trong container
 
 `.env.example` là template có thể đưa vào Git. `make setup` tạo cấu hình local với ID/mật khẩu thật; file local không được đưa vào Git.
 
-[Script quản lý](../infra/manage.py) đọc và kiểm tra biến trước khi điều khiển Compose. Khi gọi tiến trình con, nó bỏ các biến project cùng tên khỏi environment kế thừa để cấu hình trong file local không bị shell cha ghi đè ngoài ý muốn. Các thiết lập Docker như `DOCKER_HOST` vẫn được giữ.
+[Script quản lý](../../infra/manage.py) đọc và kiểm tra biến trước khi điều khiển Compose. Khi gọi tiến trình con, nó bỏ các biến project cùng tên khỏi environment kế thừa để cấu hình trong file local không bị shell cha ghi đè ngoài ý muốn. Các thiết lập Docker như `DOCKER_HOST` vẫn được giữ.
 
 Quy tắc này áp dụng cho lệnh chạy qua Makefile/script quản lý. Nếu gọi trực tiếp `docker compose` thì cần lưu ý quy tắc ưu tiên biến của chính Compose.
 
@@ -45,10 +45,12 @@ Giữ nguyên mật khẩu/cluster ID đã sinh khi dùng lại volume hiện c�
 | `SPARK_WORKER_1_UI_PORT`    | `18081`                                             | Cổng host cho worker 1 UI                                                                                        |
 | `SPARK_WORKER_2_UI_PORT`    | `18082`                                             | Cổng host cho worker 2 UI                                                                                        |
 | `SPARK_APPLICATION_UI_PORT` | `14040`                                             | Cổng host cho driver UI, chỉ có khi ứng dụng chạy                                                                |
-| `MIN_AVAILABLE_RAM_GIB`     | `10`                                                | Ngưỡng preflight; không phải giới hạn bộ nhớ Docker                                                              |
+| `MIN_AVAILABLE_RAM_GIB`     | `7` | Ngưỡng preflight; tổng giới hạn container gồm init không được vượt ngưỡng này; không trực tiếp cấu hình Docker memory limit                                                              |
 | `MIN_DOCKER_DISK_GIB`       | `30`                                                | Ngưỡng dung lượng trống tại Docker data partition khi kiểm tra được                                              |
 
 Validator còn kiểm tra biến thiếu, giá trị chưa sinh, format project/cluster ID, cổng trong khoảng 1024–65535, cổng không trùng và image có digest.
+
+Mặc định ngân sách 7 GiB bao phủ 6,25 GiB limit thường trực và 704 MiB init. Giảm biến môi trường không tự giảm các limit trong Compose; preflight sẽ báo lỗi nếu tổng limit lớn hơn ngân sách. Xem [phân bổ RAM và cách áp dụng](10-memory-budget.md).
 
 Setup dùng hai lần `secrets.token_hex(24)` để sinh hai password 48 ký tự hex độc lập. Tài liệu chỉ mô tả cách sinh, không ghi giá trị local.
 
@@ -107,12 +109,13 @@ Raw có ba partition; DLQ có một partition. Init kiểm tra cả partitions, 
 | ----------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------- |
 | `spark.master`                                        | `spark://spark-master:7077`                   | Nộp task lên cụm Standalone                          |
 | `spark.submit.deployMode`                             | `client`                                      | Driver ở container nộp job                           |
-| `spark.cores.max`                                     | `4`                                           | Tổng số core tối đa cấp cho ứng dụng                 |
-| `spark.executor.cores`                                | `2`                                           | Số task slot CPU trên mỗi executor                   |
-| `spark.executor.memory`                               | `1g`                                          | Heap executor, không phải toàn bộ RSS của tiến trình |
-| `spark.driver.memory`                                 | `768m`                                        | Heap driver                                          |
-| `spark.sql.shuffle.partitions`                        | `8`                                           | Số partition mặc định cho nhiều phép shuffle SQL     |
-| `spark.default.parallelism`                           | `8`                                           | Parallelism mặc định cho một số thao tác RDD         |
+| `spark.cores.max`                                     | `2` | Tổng số core tối đa cấp cho ứng dụng                 |
+| `spark.executor.cores`                                | `1` | Số task slot CPU trên mỗi executor                   |
+| `spark.executor.memory`                               | `640m` | Heap executor, không phải toàn bộ RSS của tiến trình |
+| `spark.driver.memory`                                 | `512m` | Heap driver                                          |
+| `spark.driver.maxResultSize` | `128m` | Tổng kết quả serialize tối đa trả về driver cho mỗi action |
+| `spark.sql.shuffle.partitions`                        | `4` | Số partition mặc định cho nhiều phép shuffle SQL     |
+| `spark.default.parallelism`                           | `4` | Parallelism mặc định cho một số thao tác RDD         |
 | `spark.dynamicAllocation.enabled`                     | `false`                                       | Không tự thay số executor theo tải                   |
 | `spark.driver.host`                                   | `spark-client`                                | Địa chỉ executor gọi về driver                       |
 | `spark.driver.bindAddress`                            | `0.0.0.0`                                     | Driver lắng nghe trên các interface container        |
@@ -124,7 +127,7 @@ Raw có ba partition; DLQ có một partition. Init kiểm tra cả partitions, 
 | `spark.eventLog.dir`                                  | `hdfs://namenode:9000/ecommerce/spark-events` | Nơi giữ event log                                    |
 | `spark.pyspark.python`, `spark.pyspark.driver.python` | `/usr/local/bin/python3`                      | Đồng nhất Python driver/executor                     |
 
-Mỗi worker quảng bá 1 GiB executor memory, nhưng container được cấp 2 GiB. Phần chênh lệch còn cần cho worker daemon, Python, native buffer và JVM overhead; không nên tăng heap đến bằng container limit.
+Mỗi worker quảng bá một core và 640 MiB executor memory, container được cấp 1.280 MiB. Phần chênh lệch còn cần cho worker daemon, Python, native buffer và JVM overhead; không nên tăng heap đến bằng container limit.
 
 CPU quota container không phải thao tác ghim vào một core vật lý. Số core Spark cũng không có nghĩa tạo thêm CPU cho máy chủ.
 
@@ -144,8 +147,8 @@ Image gốc có thể khai báo thêm anonymous volume cho đường dẫn phụ
 
 | Đường dẫn                 | Mục đích đã chuẩn bị                        |
 | ------------------------- | ------------------------------------------- |
-| `/ecommerce/bronze`       | Dữ liệu gốc cho ingestion nghiệp vụ sau này |
-| `/ecommerce/silver`       | Event chuẩn hóa nghiệp vụ sau này           |
+| `/ecommerce/bronze`       | Snapshot bốn CSV Retailrocket nguyên bản    |
+| `/ecommerce/silver`       | Event chuẩn hóa, quarantine và duplicate audit |
 | `/ecommerce/gold`         | Aggregate/feature nghiệp vụ sau này         |
 | `/ecommerce/models`       | Model artifact sau khi có training          |
 | `/ecommerce/checkpoints`  | Checkpoint nghiệp vụ sau này                |
@@ -154,9 +157,11 @@ Image gốc có thể khai báo thêm anonymous volume cho đường dẫn phụ
 
 Smoke dùng checkpoint riêng trong thư mục của từng run dưới `_smoke`, không dùng gốc checkpoint nghiệp vụ.
 
+Job ingestion tạo snapshot bên dưới Bronze/Silver khi chạy `make ingest`; xem [layout dữ liệu](../data/02-contract-and-storage.md). `make test-data` dùng namespace UUID riêng dưới `/ecommerce/_tests/ingest`.
+
 ## 8. Khóa phiên bản và thay đổi cấu hình
 
-Kafka/MongoDB được khóa image digest trong template; base Python/Java được khóa digest trong Dockerfile. Binary Hadoop/Spark và bốn JAR được kiểm tra SHA-512. Python dependency được khóa trong [requirements](../infra/spark/requirements.txt).
+Kafka/MongoDB được khóa image digest trong template; base Python/Java được khóa digest trong Dockerfile. Binary Hadoop/Spark và bốn JAR được kiểm tra SHA-512. Python dependency được khóa trong [requirements](../../infra/spark/requirements.txt).
 
 Package hệ điều hành được lấy từ repository lúc build; không tuyên bố build hermetic từng byte. Custom image local có image ID trong manifest sau khi build, nhưng có thể chưa có RepoDigest nếu chưa được đẩy lên registry.
 

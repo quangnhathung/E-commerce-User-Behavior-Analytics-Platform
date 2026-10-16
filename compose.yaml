@@ -41,7 +41,7 @@ services:
     <<: *common
     image: ${KAFKA_IMAGE:?Run make setup}
     hostname: kafka
-    mem_limit: 1024m
+    mem_limit: 768m
     cpus: 0.75
     entrypoint: [bash, /opt/infra/kafka-start.sh]
     environment:
@@ -63,7 +63,7 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       KAFKA_DELETE_TOPIC_ENABLE: "true"
       KAFKA_LOG_RETENTION_HOURS: 48
-      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
+      KAFKA_HEAP_OPTS: -Xms128m -Xmx384m
     ports:
       - 127.0.0.1:${KAFKA_HOST_PORT:-19092}:19092
     volumes:
@@ -94,11 +94,11 @@ services:
   namenode:
     <<: *hadoop
     hostname: namenode
-    mem_limit: 768m
+    mem_limit: 512m
     cpus: 0.5
     command: [namenode]
     environment:
-      HADOOP_HEAPSIZE_MAX: "384"
+      HADOOP_HEAPSIZE_MAX: "256"
       HDFS_CLUSTER_ID: ${HDFS_CLUSTER_ID:?Run make setup}
     ports:
       - 127.0.0.1:${HDFS_UI_PORT:-9870}:9870
@@ -116,11 +116,11 @@ services:
   datanode-1:
     <<: *hadoop
     hostname: datanode-1
-    mem_limit: 512m
+    mem_limit: 384m
     cpus: 0.5
     command: [datanode]
     environment:
-      HADOOP_HEAPSIZE_MAX: "256"
+      HADOOP_HEAPSIZE_MAX: "192"
       HDFS_CLUSTER_ID: ${HDFS_CLUSTER_ID:?Run make setup}
     volumes:
       - datanode-1-data:/var/lib/hadoop/data
@@ -139,11 +139,11 @@ services:
   datanode-2:
     <<: *hadoop
     hostname: datanode-2
-    mem_limit: 512m
+    mem_limit: 384m
     cpus: 0.5
     command: [datanode]
     environment:
-      HADOOP_HEAPSIZE_MAX: "256"
+      HADOOP_HEAPSIZE_MAX: "192"
       HDFS_CLUSTER_ID: ${HDFS_CLUSTER_ID:?Run make setup}
     volumes:
       - datanode-2-data:/var/lib/hadoop/data
@@ -177,11 +177,11 @@ services:
   spark-master:
     <<: *spark
     hostname: spark-master
-    mem_limit: 512m
+    mem_limit: 384m
     cpus: 0.25
     environment:
       <<: *spark-env
-      SPARK_DAEMON_MEMORY: 192m
+      SPARK_DAEMON_MEMORY: 128m
     command: [/opt/spark/bin/spark-class, org.apache.spark.deploy.master.Master, --host, spark-master, --port, "7077", --webui-port, "18080"]
     ports:
       - 127.0.0.1:${SPARK_MASTER_UI_PORT:-18080}:18080
@@ -195,12 +195,12 @@ services:
   spark-worker-1:
     <<: *spark
     hostname: spark-worker-1
-    mem_limit: 2048m
-    cpus: 2
+    mem_limit: 1280m
+    cpus: 1
     environment:
       <<: *spark-env
       SPARK_PUBLIC_DNS: 127.0.0.1
-    command: [/opt/spark/bin/spark-class, org.apache.spark.deploy.worker.Worker, --host, spark-worker-1, --cores, "2", --memory, 1g, --webui-port, "18081", "spark://spark-master:7077"]
+    command: [/opt/spark/bin/spark-class, org.apache.spark.deploy.worker.Worker, --host, spark-worker-1, --cores, "1", --memory, 640m, --webui-port, "18081", "spark://spark-master:7077"]
     ports:
       - 127.0.0.1:${SPARK_WORKER_1_UI_PORT:-18081}:18081
     depends_on:
@@ -216,12 +216,12 @@ services:
   spark-worker-2:
     <<: *spark
     hostname: spark-worker-2
-    mem_limit: 2048m
-    cpus: 2
+    mem_limit: 1280m
+    cpus: 1
     environment:
       <<: *spark-env
       SPARK_PUBLIC_DNS: 127.0.0.1
-    command: [/opt/spark/bin/spark-class, org.apache.spark.deploy.worker.Worker, --host, spark-worker-2, --cores, "2", --memory, 1g, --webui-port, "18082", "spark://spark-master:7077"]
+    command: [/opt/spark/bin/spark-class, org.apache.spark.deploy.worker.Worker, --host, spark-worker-2, --cores, "1", --memory, 640m, --webui-port, "18082", "spark://spark-master:7077"]
     ports:
       - 127.0.0.1:${SPARK_WORKER_2_UI_PORT:-18082}:18082
     depends_on:
@@ -278,7 +278,7 @@ services:
   spark-client:
     <<: *spark
     hostname: spark-client
-    mem_limit: 1280m
+    mem_limit: 896m
     cpus: 1
     command: [sleep, infinity]
     environment:
@@ -294,6 +294,7 @@ services:
       - ./infra/config/hadoop/hdfs-site.xml:/etc/hadoop/hdfs-site.xml:ro
       - ./infra/config/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
       - ./infra/smoke:/opt/infra/smoke:ro
+      - ./app:/opt/app:ro
       - type: bind
         source: ${DATASET_PATH:?Run make setup}
         target: /opt/dataset

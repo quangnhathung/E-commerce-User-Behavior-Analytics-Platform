@@ -2,6 +2,8 @@
 
 [← Mục lục](README.md)
 
+Cấu hình RAM mặc định hiện là 7 GiB. Khi chuyển từ cấu hình cũ, chạy `make config`, `make test`, rồi `make up`, `make doctor`, `make smoke`; không cần build lại image. [Chi tiết ngân sách và theo dõi OOM](10-memory-budget.md).
+
 Tất cả lệnh bên dưới chạy từ thư mục gốc repository. Cấu hình local được tạo bởi `make setup`. Giá trị mong đợi là tiêu chí đối chiếu, không phải log đã đo trên cụm thật.
 
 ## 1. Khởi động lần đầu
@@ -30,6 +32,8 @@ make smoke
 | `make test`                              | Python, Docker Compose CLI                  | Chạy unittest offline                                          | Kết quả test; không cần daemon                |
 | `make smoke`                             | Cụm healthy, driver không bận               | Gửi dữ liệu nhỏ, chạy Spark/HDFS/MongoDB, dọn run              | `smoke.log` và `smoke.json` khi thành công    |
 | `make persistence-test`                  | Cụm healthy, không có job cần tiếp tục chạy | Tạo marker, down/up, verify, clean                             | Token và ba nhóm log/JSON                     |
+| `make test-data`                         | Cụm healthy, mã ứng dụng được mount        | Fixture Spark/HDFS, fault/retry, kiểm tra chất lượng và dọn namespace riêng | `artifacts/data/test-data.json` khi thành công |
+| `make ingest`                            | Cụm healthy, đủ bốn CSV, driver không bận  | Snapshot Bronze/Silver, kiểm tra checksum, loại trùng và cách ly lỗi | Manifest, quality và run log trong `artifacts/data/` |
 | `make ps`                                | File local, daemon                          | Compose ps all                                                 | Container đang chạy và init đã thoát          |
 | `make logs`                              | File local, daemon                          | Xem tối đa 100 dòng mỗi service                                | Không follow liên tục                         |
 | `make versions`                          | Image đã có, daemon                         | Inspect image và phiên bản công cụ                             | `versions.json`                               |
@@ -39,6 +43,8 @@ make smoke
 `doctor` khi chưa có container sẽ báo chưa khởi động. Nếu còn container đã dừng, nó có thể báo service chưa healthy; khi đó dùng `ps` để xem và `up` để khởi động.
 
 Mọi action qua manager ngoài `setup` đều yêu cầu cấu hình local hợp lệ. `make test` gọi unittest trực tiếp nên không cần file local; nó dùng template khi kiểm tra Compose.
+
+`ingest` và `test-data` chạy qua [manager ứng dụng](../../app/manage.py), dùng cùng cấu hình và khóa driver với smoke/persistence. Chi tiết đầu vào, tác động khi chạy lại và xử lý lỗi: [vận hành ingestion](../data/03-ingestion.md).
 
 ## 3. Trạng thái và log
 

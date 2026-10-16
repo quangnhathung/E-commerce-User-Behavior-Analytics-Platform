@@ -2,7 +2,7 @@
 
 [← Mục lục](README.md)
 
-Phần này giải thích những gì xảy ra bên trong lệnh vận hành, dựa trên [script quản lý](../infra/manage.py) và [Compose](../compose.yaml).
+Phần này giải thích những gì xảy ra bên trong lệnh vận hành, dựa trên [script quản lý](../../infra/manage.py) và [Compose](../../compose.yaml).
 
 ## 1. Toàn bộ quá trình
 
@@ -67,6 +67,8 @@ Các kiểm tra của `make up`:
 | RAM                       | Đảm bảo ngân sách cho các container cần chạy thêm  |
 | Docker data disk          | Kiểm tra tối thiểu 30 GiB nếu đường dẫn thấy được  |
 | Cổng host                 | Tránh giành cổng của dịch vụ khác                  |
+
+Preflight yêu cầu 7 GiB khi chưa có service project chạy, đồng thời kiểm tra tổng memory limit của toàn bộ service (kể cả init) không vượt ngân sách. Tổng limit hiện tại là 6,9375 GiB.
 
 Khi gọi `up` lại, script trừ giới hạn bộ nhớ của các service project đã chạy khỏi ngưỡng cần bổ sung. Đây là phép tính ngân sách dựa trên cấu hình, không phải phép đo RSS thực tế từng container.
 
@@ -153,7 +155,7 @@ Nếu khởi động thất bại giữa chừng, một phần container có th�
 
 ## 9. Vòng đời một job kiểm thử
 
-Makefile gọi script quản lý; script lấy khóa file để ngăn các job smoke/persistence được quản lý chạy chồng nhau. Sau đó chạy `spark-submit` trong client.
+Makefile gọi script quản lý; script lấy khóa file dùng chung cho smoke, persistence-test, ingest và test-data để ngăn các job được quản lý chạy chồng nhau. Sau đó chạy `spark-submit` trong client. Lệnh gọi Spark thủ công không tự lấy khóa này.
 
 - Timeout mỗi lệnh job: 600 giây.
 - Nếu quá hạn, `timeout` gửi tín hiệu dừng và có thời gian kill-after 15 giây.

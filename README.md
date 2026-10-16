@@ -1,17 +1,17 @@
 # E-commerce User Behavior Analytics Platform
 
-Hạ tầng local cho đồ án Kafka → Spark → HDFS → MongoDB. Phạm vi hiện tại gồm môi trường chạy job và bộ kiểm tra hạ tầng; phần xử lý nghiệp vụ, ML, API và dashboard sẽ được xây trên nền này.
+Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Phạm vi hiện tại gồm hạ tầng Docker và luồng batch Retailrocket CSV → Bronze → Silver, với chuẩn hóa sự kiện, loại trùng, cách ly dòng lỗi và báo cáo chất lượng. Replay Kafka, KPI/funnel, ML, API và dashboard thuộc các giai đoạn tiếp theo.
 
 Kế hoạch sản phẩm đầy đủ: [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
 
-Tài liệu giải thích chi tiết từng thành phần, cấu hình, cách vận hành và kiểm thử: [docs/README.md](docs/README.md).
+Mục lục tài liệu: [docs/README.md](docs/README.md). Hướng dẫn hạ tầng: [docs/infra/README.md](docs/infra/README.md). Hợp đồng dữ liệu, ingestion và kiểm thử ứng dụng: [docs/data/README.md](docs/data/README.md).
 
 ## Yêu cầu
 
 - Linux `amd64`, CPU hỗ trợ AVX, tối thiểu bốn CPU logic cho Docker.
 - Docker Engine đang chạy, Docker Compose hỗ trợ `up --wait` và plugin Docker Buildx cho BuildKit cache. Trên Arch Linux: `sudo pacman -S docker-buildx`.
 - Python 3.10+ và GNU Make trên máy chủ. Job trong container dùng Python 3.11.
-- Khoảng **10 GiB RAM khả dụng** trước khi khởi động toàn bộ cụm; chín container có tổng giới hạn 9 GiB, cộng tối đa 704 MiB cho ba job init.
+- Khoảng **7 GiB RAM khả dụng** trước khi khởi động toàn bộ cụm; chín container có tổng giới hạn 6,25 GiB, cộng tối đa 704 MiB cho ba job init, tổng 6,94 GiB. Docker daemon và hệ điều hành cần RAM riêng. Xem [ngân sách RAM](docs/infra/10-memory-budget.md).
 - Ít nhất 30 GiB trống trên phân vùng chứa Docker data; nên dành thêm dung lượng khi nạp dataset.
 - Internet trong lần build đầu để tải base image, binary Apache và dependency.
 
@@ -40,7 +40,7 @@ make smoke
 ```
 
 - `setup` tạo `.env` với quyền `0600`, sinh hai mật khẩu độc lập và Kafka cluster ID. Chạy lại giữ nguyên file hiện có; file thiếu cấu hình sẽ được báo lỗi để sửa thủ công.
-- `build` kiểm tra Buildx, tải image Kafka/MongoDB theo digest và build Hadoop/Spark. Binary Spark khoảng 382 MiB được tải từ mirror Huawei; Hadoop lean khoảng 489 MiB từ CDN Apache, có nguồn dự phòng. BuildKit cache lưu binary đã xác minh và file tải dở để dùng lại. Xem [tối ưu build](docs/09-build-optimization.md).
+- `build` kiểm tra Buildx, tải image Kafka/MongoDB theo digest và build Hadoop/Spark. Binary Spark khoảng 382 MiB được tải từ mirror Huawei; Hadoop lean khoảng 489 MiB từ CDN Apache, có nguồn dự phòng. BuildKit cache lưu binary đã xác minh và file tải dở để dùng lại. Xem [tối ưu build](docs/infra/09-build-optimization.md).
 - `up` kiểm tra môi trường, khởi động các image đã build, đợi healthcheck và xác nhận ba tác vụ init hoàn tất.
 - `doctor` kiểm tra daemon, dataset, tài nguyên, cổng và readiness của cụm nếu đã khởi tạo.
 - `smoke` chạy kiểm tra dữ liệu thật giữa các dịch vụ, không tác động topic nghiệp vụ.
@@ -52,18 +52,36 @@ make config
 make test
 ```
 
-`make test` dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils để kiểm tra bootstrap, cấu hình, cache và downloader. Test HTTP dùng socket loopback; nếu môi trường cấm tạo socket, bảy test này được ghi rõ là skipped. Các kiểm tra này không thay thế `make smoke` trên cụm đang chạy.
+`make test` chạy 34 test hạ tầng và 16 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Không cần cài PySpark trên host. Test HTTP dùng socket loopback; nếu môi trường cấm tạo socket, bảy test này được ghi rõ là skipped. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
+
+## Nạp dữ liệu lịch sử
+
+Sau khi image đã có, chạy lần lượt:
+
+```bash
+make up
+make doctor
+make smoke
+make test-data
+make ingest
+```
+
+`make up` áp dụng mount mã ứng dụng vào Spark client; thay đổi ứng dụng này không cần build lại image. `test-data` chạy fixture trên Spark/HDFS thật và dọn namespace kiểm thử riêng. `ingest` giữ nguyên bốn CSV trong Bronze, chuyển `events.csv` thành Parquet Silver phân vùng theo ngày UTC, kèm quarantine, duplicate audit và quality report.
+
+Chạy lại `make ingest` với cùng dữ liệu và mã biến đổi sẽ xác minh rồi dùng lại snapshot. Job từ chối snapshot thiếu marker, sai checksum hoặc khác phiên bản mã; không tự ghi đè dữ liệu đã công bố. Báo cáo host nằm trong `artifacts/data/`. Xem [cách chạy và xử lý lỗi](docs/data/03-ingestion.md).
+
+Mã nguồn và kiểm thử offline đã được kiểm tra; phiên công cụ chưa chạy được Spark/HDFS do quyền truy cập Docker socket. Cần hoàn tất [nghiệm thu dữ liệu](docs/data/05-testing.md) trên máy có quyền Docker trước khi xác nhận ingest thực tế thành công.
 
 ## Dịch vụ và phiên bản
 
 | Service | Vai trò | Bộ nhớ tối đa |
 |---|---|---:|
-| `kafka` | Kafka 3.9.1, KRaft broker/controller | 1.024 MiB |
-| `namenode` | Hadoop 3.4.2 NameNode | 768 MiB |
-| `datanode-1`, `datanode-2` | HDFS DataNodes, replication 2 | 512 MiB mỗi node |
-| `spark-master` | Spark 3.5.7 Standalone master | 512 MiB |
-| `spark-worker-1`, `spark-worker-2` | Hai worker, hai core và 1 GiB executor mỗi node | 2.048 MiB mỗi worker |
-| `spark-client` | Python 3.11 / Java 17, chạy driver | 1.280 MiB |
+| `kafka` | Kafka 3.9.1, KRaft broker/controller | 768 MiB |
+| `namenode` | Hadoop 3.4.2 NameNode | 512 MiB |
+| `datanode-1`, `datanode-2` | HDFS DataNodes, replication 2 | 384 MiB mỗi node |
+| `spark-master` | Spark 3.5.7 Standalone master | 384 MiB |
+| `spark-worker-1`, `spark-worker-2` | Hai worker, một core và heap executor 640 MiB mỗi node | 1.280 MiB mỗi worker |
+| `spark-client` | Python 3.11 / Java 17, chạy driver | 896 MiB |
 | `mongodb` | MongoDB 8.0, authentication bật | 512 MiB |
 
 Ba job chạy một lần là `kafka-init`, `hdfs-init`, `mongo-init`. Init phải thoát với mã 0; `Exited (0)` là trạng thái đúng cho các job này.
@@ -126,9 +144,9 @@ docker compose exec spark-client bash
 docker compose exec -T spark-client python3 /opt/infra/smoke/readiness.py
 ```
 
-Driver chạy ở `spark-client`, executor kết nối về các cổng nội bộ cố định. Chỉ chạy một Spark driver tại một thời điểm với cấu hình hiện tại. Các lệnh smoke/persistence có khóa để không chạy chồng nhau.
+Driver chạy ở `spark-client`, executor kết nối về các cổng nội bộ cố định. Chỉ chạy một Spark driver tại một thời điểm với cấu hình hiện tại. Các lệnh smoke, persistence-test, ingest và test-data dùng chung khóa để không chạy chồng nhau.
 
-Khi thêm job nghiệp vụ, mount source code read-only hoặc đóng gói module vào image, rồi dùng `spark-submit --deploy-mode client`. Không dùng `local[*]` để chứng minh xử lý trên hai worker. Kafka connector đã có trong image, không thêm `--packages` tải dependency lúc demo.
+Ứng dụng được mount read-only từ `app/` vào `/opt/app`; CLI đóng gói dependency Python thành ZIP và phân phối đến executor bằng `spark-submit --deploy-mode client --py-files`. Không dùng `local[*]` để chứng minh xử lý trên hai worker. Kafka connector đã có trong image, không thêm `--packages` tải dependency lúc demo.
 
 ## Kiểm thử tích hợp
 
@@ -179,7 +197,7 @@ Lệnh reset không gọi `docker system prune`, không xóa dataset và không 
 ## Xử lý lỗi
 
 - **Daemon không truy cập được:** kiểm tra `docker info` tại terminal thực thi. Một số môi trường agent chỉ cho phép một phần lệnh Docker; kiểm tra offline vẫn chạy được nhưng build/runtime cần quyền daemon thực tế.
-- **Thiếu RAM:** đóng bớt ứng dụng rồi chạy lại `make up`. Preflight trừ ngân sách container của project đã chạy để cho phép gọi `up` lại. Không tự giảm worker hoặc replication.
+- **Thiếu RAM:** mặc định cần 7 GiB khả dụng lúc chưa có container project chạy; tổng limit gồm init là 6,94 GiB. Đóng bớt ứng dụng rồi chạy lại `make up`. Không chỉ hạ ngưỡng môi trường xuống dưới tổng limit. Preflight trừ ngân sách container của project đã chạy để cho phép gọi `up` lại. Không tự giảm worker hoặc replication.
 - **Thiếu image:** chạy `make build`; `make up` không tự tải dependency hoặc build lại.
 - **Cổng bị chiếm:** đổi biến cổng host tương ứng trong `.env`; không dừng dịch vụ đang giữ cổng.
 - **Sai cluster ID:** khôi phục `.env` khớp volume; startup không tự format/xóa dữ liệu.

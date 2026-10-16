@@ -2,26 +2,26 @@
 
 [← Mục lục](README.md)
 
-Tên dưới đây là **service name** trong [Compose](../compose.yaml), không phải tên container cố định. Compose thêm namespace project vào tên tài nguyên.
+Tên dưới đây là **service name** trong [Compose](../../compose.yaml), không phải tên container cố định. Compose thêm namespace project vào tên tài nguyên.
 
 ## 1. Tổng quan tài nguyên
 
 | Service          | Bộ nhớ container | CPU tối đa | Tiến trình/nhiệm vụ                      |
 | ---------------- | ---------------: | ---------: | ---------------------------------------- |
-| `kafka`          |        1.024 MiB |       0,75 | Kafka broker và KRaft controller         |
-| `namenode`       |          768 MiB |        0,5 | HDFS NameNode                            |
-| `datanode-1`     |          512 MiB |        0,5 | HDFS DataNode                            |
-| `datanode-2`     |          512 MiB |        0,5 | HDFS DataNode                            |
-| `spark-master`   |          512 MiB |       0,25 | Spark Standalone master                  |
-| `spark-worker-1` |        2.048 MiB |          2 | Worker và executor của nó                |
-| `spark-worker-2` |        2.048 MiB |          2 | Worker và executor của nó                |
-| `spark-client`   |        1.280 MiB |          1 | Container công cụ và driver khi chạy job |
+| `kafka`          | 768 MiB | 0,75 | Kafka broker và KRaft controller         |
+| `namenode`       | 512 MiB | 0,5 | HDFS NameNode                            |
+| `datanode-1`     | 384 MiB | 0,5 | HDFS DataNode                            |
+| `datanode-2`     | 384 MiB | 0,5 | HDFS DataNode                            |
+| `spark-master`   | 384 MiB | 0,25 | Spark Standalone master                  |
+| `spark-worker-1` | 1.280 MiB | 1 | Worker và executor của nó                |
+| `spark-worker-2` | 1.280 MiB | 1 | Worker và executor của nó                |
+| `spark-client`   | 896 MiB | 1 | Container công cụ và driver khi chạy job |
 | `mongodb`        |          512 MiB |        0,5 | MongoDB server                           |
 | `kafka-init`     |          256 MiB |       0,25 | Tạo/kiểm tra topic                       |
 | `hdfs-init`      |          256 MiB |       0,25 | Đợi HDFS và tạo thư mục                  |
 | `mongo-init`     |          192 MiB |       0,25 | Tạo application account và marker        |
 
-Chín service đầu chạy thường trực. Ba init job chạy rồi thoát. Tổng giới hạn thường trực là 9 GiB và tám CPU logic; init bổ sung tối đa 704 MiB và 0,75 CPU khi cùng chạy.
+Chín service đầu chạy thường trực. Ba init job chạy rồi thoát. Tổng giới hạn thường trực là 6,25 GiB và sáu CPU logic; init bổ sung tối đa 704 MiB và 0,75 CPU khi cùng chạy. Tổng cộng 7.104 MiB (6,9375 GiB), dưới ngân sách 7 GiB. Xem [ngân sách RAM](10-memory-budget.md).
 
 ## 2. Kafka
 
@@ -34,7 +34,7 @@ Chín service đầu chạy thường trực. Ba init job chạy rồi thoát. T
 - Controller dùng `9093` trong network.
 - Log dữ liệu nằm ở `/var/lib/kafka/data` trên volume `kafka-data`.
 - Startup guard so cluster ID trong metadata với cấu hình trước khi gọi launcher chính thức.
-- Heap server khởi đầu 256 MiB, tối đa 512 MiB; heap khác giới hạn container.
+- Heap server khởi đầu 128 MiB, tối đa 384 MiB; heap khác giới hạn container.
 
 Healthcheck gọi Kafka API versions, không chỉ kiểm tra cổng TCP. Khi broker dừng, producer/consumer và job liên quan không thể trao đổi dữ liệu cho đến khi broker phục hồi. Bản hiện tại không có broker dự phòng.
 
@@ -53,7 +53,7 @@ Kỳ vọng khi init hoàn tất: có `ecommerce.events.raw` và `ecommerce.even
 - Chạy `hdfs namenode` ở foreground.
 - Metadata nằm ở `/var/lib/hadoop/name` trên volume riêng.
 - RPC `9000`; UI/JMX `9870`.
-- Heap tối đa 384 MiB trong container 768 MiB.
+- Heap tối đa 256 MiB trong container 512 MiB.
 - Startup chỉ format khi thư mục metadata rỗng; metadata không khớp sẽ làm startup thất bại.
 
 Healthcheck gọi JMX của chính NameNode. Nó không chờ đủ hai DataNode, vì DataNode lại phụ thuộc NameNode sẵn sàng.
@@ -74,7 +74,7 @@ Kỳ vọng sau bootstrap: report hiển thị hai live DataNode.
 - Cùng image Hadoop nhưng khác hostname và volume.
 - Chạy `hdfs datanode`.
 - Dữ liệu ở `/var/lib/hadoop/data`.
-- Heap tối đa 256 MiB/container.
+- Heap tối đa 192 MiB trong container 384 MiB.
 - Cổng nội bộ: transfer `9866`, IPC `9867`, HTTP/JMX `9864`.
 - Đợi NameNode healthy trước khi khởi chạy.
 - Healthcheck kiểm tra JMX DataNode; số node đã đăng ký được kiểm tra thêm ở init/readiness.
@@ -93,7 +93,7 @@ docker compose exec -T namenode hdfs fsck /ecommerce -files -blocks -locations
 - Dùng image Spark 3.5.7, Scala 2.12, Java 17, Python 3.11.
 - Khởi động class `org.apache.spark.deploy.master.Master`.
 - RPC `7077`; UI/JSON `18080`.
-- Heap daemon 192 MiB; container 512 MiB.
+- Heap daemon 128 MiB; container 384 MiB.
 - Không trực tiếp đảm nhiệm các task xử lý dữ liệu của executor.
 - Healthcheck đọc JSON UI. Readiness kiểm tra thêm hai worker ở trạng thái `ALIVE`.
 
@@ -108,8 +108,8 @@ docker compose exec -T spark-client python3 /opt/infra/smoke/readiness.py --once
 
 **Công dụng:** tạo và quản lý executor dùng để thực thi task.
 
-- Mỗi worker quảng bá hai core, 1 GiB executor memory.
-- Container giới hạn 2 GiB để chừa phần cho worker daemon, Python và overhead.
+- Mỗi worker quảng bá một core, 640 MiB executor memory.
+- Container giới hạn 1.280 MiB để chừa phần cho worker daemon, Python và overhead. Hai worker chạy tối đa hai task đồng thời.
 - Heap worker daemon 128 MiB.
 - UI lần lượt `18081` và `18082`.
 - Scratch/work directory ở `/tmp/spark-local` và `/tmp/spark-work`.
@@ -132,7 +132,7 @@ Mở master UI để xem worker đăng ký; dùng smoke test để xác nhận t
 - Nhận application credential MongoDB; không nhận root password.
 - Driver bind `0.0.0.0`, quảng bá `spark-client`, dùng cổng RPC `39001` và driver block manager `39002`.
 - UI ứng dụng ở `14040` chỉ xuất hiện khi có ứng dụng chạy.
-- Heap driver 768 MiB; container 1.280 MiB.
+- Heap driver 512 MiB; container 896 MiB. Giới hạn tổng kết quả serialize trả về driver là 128 MiB.
 - Chỉ khởi chạy sau ba job init thành công và hai worker healthy.
 - Healthcheck xác nhận topology, topic và khả năng đọc bootstrap metadata MongoDB.
 
