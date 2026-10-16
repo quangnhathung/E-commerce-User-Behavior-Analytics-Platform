@@ -15,7 +15,8 @@ x-spark: &spark
   <<: *common
   image: ${COMPOSE_PROJECT_NAME:-ecommerce-analytics}/spark-runtime:3.5.7
   build:
-    context: ./infra/spark
+    context: ./infra
+    dockerfile: spark/Dockerfile
   environment: &spark-env
     HADOOP_CONF_DIR: /etc/hadoop
     SPARK_DAEMON_MEMORY: 128m
@@ -32,7 +33,8 @@ x-hadoop: &hadoop
   <<: *common
   image: ${COMPOSE_PROJECT_NAME:-ecommerce-analytics}/hadoop:3.4.2
   build:
-    context: ./infra/hadoop
+    context: ./infra
+    dockerfile: hadoop/Dockerfile
 
 services:
   kafka:

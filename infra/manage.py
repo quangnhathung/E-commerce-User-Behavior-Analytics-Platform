@@ -282,6 +282,17 @@ def versions():
     print("Wrote artifacts/infra/versions.json (no environment/credentials included).")
 
 
+def require_buildkit():
+    if os.environ.get("DOCKER_BUILDKIT") == "0":
+        raise InfraError("BuildKit is required for download cache mounts. Unset DOCKER_BUILDKIT=0 before building.")
+    try:
+        execute(["docker", "buildx", "version"], capture=True, timeout=20)
+    except InfraError as error:
+        raise InfraError("Docker Buildx plugin is required before building. On Arch Linux: "
+                         "sudo pacman -S docker-buildx; then check docker buildx version. "
+                         "See docs/09-build-optimization.md. " + str(error)) from error
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["setup", "build", "up", "doctor", "smoke", "persistence-test",
@@ -298,6 +309,7 @@ def main():
         execute(compose("config", "--quiet"))
         print("Compose configuration valid (credentials not printed).")
     elif action == "build":
+        require_buildkit()
         preflight(env, resources=False, ports=False)
         execute(compose("pull", "kafka", "mongodb"))
         execute(compose("build", "--pull", "namenode", "spark-master"))

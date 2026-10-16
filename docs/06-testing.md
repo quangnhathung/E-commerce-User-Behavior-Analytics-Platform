@@ -14,13 +14,15 @@ Không suy diễn kết quả tầng trước thành bằng chứng của tầng
 
 ## 2. Kiểm thử offline
 
-Nguồn: [test_infrastructure.py](../infra/tests/test_infrastructure.py).
+Nguồn: [test_infrastructure.py](../infra/tests/test_infrastructure.py) và [test_download.py](../infra/tests/test_download.py).
 
 | Nhóm                     | Số test | Nội dung                                                                                                                                                                                  |
 | ------------------------ | ------: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| BootstrapTests           |       7 | Setup giữ credential/ID, quyền file 0600; không ghi đè file lỗi; từ chối cổng trùng/image không khóa; parse environment và ps; reset cần xác nhận; biến project không bị shell cha ghi đè |
+| BootstrapTests           |       9 | Setup giữ credential/ID, quyền file 0600; không ghi đè file lỗi; từ chối cổng trùng/image không khóa; parse environment và ps; reset cần xác nhận; biến project không bị shell cha ghi đè |
 | ComposeTests             |       5 | Đủ topology và ngân sách RAM; cổng loopback duy nhất; dependency không vòng; DataNode volume riêng và bind mount read-only; runtime nhất quán và client không nhận root credential        |
 | HadoopConfigurationTests |       1 | Replication, hostname networking và số DataNode tối thiểu                                                                                                                                 |
+
+Bổ sung ba test `CachedDownloadTests` kiểm tra cache/hash/atomic publication mà không cần socket; bảy test `DownloadTests` dùng curl thật và HTTP server loopback để kiểm tra cache, mất kết nối, SIGTERM, HTTP Range/416, checksum sai và fallback. Tổng cộng 25 test. Nếu môi trường cấm tạo socket, bảy test HTTP được ghi rõ là skipped; các lỗi bind khác vẫn làm test thất bại. Cần Bash, curl và GNU coreutils trên host.
 
 Các test Compose gọi CLI để expand cấu hình thành JSON từ template. Chúng không pull image, không tạo container hoặc truy cập daemon. Test setup dùng thư mục tạm; password được sinh trong test không được in ra.
 
@@ -178,7 +180,7 @@ Bộ kiểm thử hiện tại không chứng minh HA vật lý, tải cao, kh�
 
 ## 8. Trạng thái thực tế đã biết
 
-Phiên triển khai trước đã đạt 13 test offline, kiểm tra Compose và cú pháp Python/Bash. Build bị chặn ở truy cập Docker socket; khi rà soát tài liệu chưa có artifact runtime để xác nhận smoke/persistence.
+Phiên cập nhật tối ưu build đạt 18 test, với 7 test HTTP skipped vì sandbox cấm tạo socket. Compose config và cú pháp Python/Bash đã đạt. Các test HTTP cần chạy lại trên terminal host không bị giới hạn này. Build bị chặn ở truy cập Docker socket; khi rà soát tài liệu chưa có artifact runtime để xác nhận smoke/persistence.
 
 Sau khi chạy trên môi trường có daemon, dùng artifact thật để bổ sung bằng chứng. Không thay trạng thái “chưa xác minh” bằng “đạt” chỉ vì script đã được tạo.
 

@@ -1,0 +1,13 @@
+**
+!build/
+build/**
+!build/download.sh
+!spark/
+spark/**
+!spark/Dockerfile
+!spark/requirements.txt
+!spark/download_jars.py
+!hadoop/
+hadoop/**
+!hadoop/Dockerfile
+!hadoop/entrypoint.sh

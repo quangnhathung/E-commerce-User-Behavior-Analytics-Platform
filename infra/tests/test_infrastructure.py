@@ -20,6 +20,27 @@ spec.loader.exec_module(manage)
 
 
 class BootstrapTests(unittest.TestCase):
+    def test_build_rejects_disabled_buildkit_without_contacting_docker(self):
+        with mock.patch.dict(os.environ, {"DOCKER_BUILDKIT": "0"}), \
+             mock.patch.object(manage, "execute") as execute:
+            with self.assertRaisesRegex(manage.InfraError, "BuildKit is required"):
+                manage.require_buildkit()
+            execute.assert_not_called()
+
+    def test_missing_buildx_stops_build_before_pull_or_preflight(self):
+        with mock.patch.object(manage, "read_env", return_value={}), \
+             mock.patch.object(manage, "validate_env"), \
+             mock.patch.object(manage, "ENV_FILE") as env_file, \
+             mock.patch.object(manage, "preflight") as preflight, \
+             mock.patch.object(manage, "execute", side_effect=manage.InfraError("missing plugin")) as execute, \
+             mock.patch.dict(os.environ, {"DOCKER_BUILDKIT": "1"}), \
+             mock.patch("sys.argv", ["manage.py", "build"]):
+            env_file.is_file.return_value = True
+            with self.assertRaisesRegex(manage.InfraError, "docker-buildx"):
+                manage.main()
+            preflight.assert_not_called()
+            execute.assert_called_once_with(["docker", "buildx", "version"], capture=True, timeout=20)
+
     def test_setup_preserves_secrets_and_cluster_id(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
