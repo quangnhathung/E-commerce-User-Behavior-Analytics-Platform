@@ -18,6 +18,22 @@ Kế hoạch dựa trên [đoạn chat bạn cung cấp](https://chatgpt.com/sha
 | Giao diện                | FastAPI + Streamlit + Plotly                     |
 | Triển khai               | Docker Compose trên một máy                      |
 
+
+**Mục đích cao nhất của đề tài là biến dữ liệu hành vi mua sắm thành thông tin giúp doanh nghiệp hiểu khách hàng và quyết định nên cải thiện việc bán hàng ở đâu.**
+
+Cụ thể, hệ thống cần trả lời ba câu hỏi:
+
+1. **Khách hàng đang làm gì và dừng ở đâu?**  
+   Sản phẩm nào được quan tâm? Bao nhiêu người đi từ **xem → thêm giỏ → mua**? Bước nào mất nhiều khách nhất?
+2. **Có những nhóm khách hàng với hành vi khác nhau nào?**  
+   Dùng K-Means để phân nhóm theo mức độ tương tác, tần suất hoạt động và hành vi giỏ hàng, giúp người vận hành hiểu từng nhóm.
+3. **Khách nào có dấu hiệu sẽ mua trong 24 giờ tiếp theo?**  
+   Dùng Random Forest để tạo điểm dự đoán, hỗ trợ xác định nhóm khách cần ưu tiên theo dõi hoặc thử nghiệm chăm sóc.
+
+Ví dụ: dashboard cho thấy một sản phẩm được xem rất nhiều nhưng ít được thêm vào giỏ. Người vận hành có cơ sở chọn sản phẩm đó để kiểm tra trang sản phẩm và thử cải thiện trải nghiệm. Hệ thống giúp **xác định vấn đề cần điều tra**; hiệu quả cải thiện vẫn cần đo lường bằng thực nghiệm.
+
+Ở góc độ **đồ án Big Data**, bạn cần chứng minh toàn bộ chuỗi hoạt động được: tiếp nhận sự kiện, xử lý phân tán, lưu trữ, phân tích, dự đoán và hiển thị kết quả cập nhật trên dashboard. Kafka, Spark, HDFS và Docker phục vụ chuỗi này.
+
 ### Hiện trạng đã kiểm tra
 
 Workspace mới có dữ liệu, chưa có mã nguồn ứng dụng. Máy có 12 CPU logic, khoảng 16 GB RAM và 373 GB dung lượng trống; đã có Docker, Docker Compose, Python và Java.
