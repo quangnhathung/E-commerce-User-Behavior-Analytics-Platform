@@ -161,13 +161,28 @@ Caller chịu trách nhiệm truyền topic kiểm thử đúng; helper delete k
 
 Thay topology cần cập nhật đồng bộ các phép kiểm tra đang cố ý yêu cầu đúng hai worker/hai DataNode. Không chỉ đổi Compose rồi bỏ qua lỗi test.
 
-## 10. Điểm nối với giai đoạn tiếp theo
+## 10. Ứng dụng batch và điểm nối tiếp theo
+
+Luồng batch đã có mã nguồn trong [app/](../../app/). Hướng dẫn đầy đủ: [tài liệu dữ liệu](../data/README.md).
+
+| File/module | Công dụng |
+| --- | --- |
+| [app/manage.py](../../app/manage.py) | CLI host, preflight, khóa driver, submit job, log và report local |
+| [app/package_code.py](../../app/package_code.py) | ZIP Python tái lập được để phân phối dependency đến executor |
+| [app/run_job.py](../../app/run_job.py) | Chạy/hủy process group Spark trong client, timeout và record UUID |
+| [contracts.py](../../app/ecommerce_analytics/contracts.py) | Header, fingerprint, version, event ID và quy tắc chuẩn hóa thuần Python |
+| [hdfs.py](../../app/ecommerce_analytics/hdfs.py) | Adapter Hadoop JVM: copy, checksum, replica, đọc metadata và rename không ghi đè |
+| [snapshots.py](../../app/ecommerce_analytics/snapshots.py) | Manifest, xác minh snapshot, staging và công bố nguyên tử |
+| [ingestion.py](../../app/ecommerce_analytics/ingestion.py) | Parse trên worker, loại trùng, Parquet, quality report và xác minh Silver |
+| [app/jobs/](../../app/jobs/) | Entry point ingest và fixture tích hợp Spark/HDFS |
+| [app/tests/](../../app/tests/) | Kiểm thử offline và bộ tạo fixture |
+
+Các phần tiếp theo chưa có chức năng nghiệp vụ:
 
 - Producer nghiệp vụ dùng listener nội bộ Kafka.
-- Batch ingestion đọc dataset tại `/opt/dataset` và ghi vào vùng HDFS phù hợp.
 - Job feature/training dùng Spark cluster, lưu artifact model trên HDFS.
 - Kết quả phục vụ API sau này được ghi bằng application account MongoDB.
 - Checkpoint nghiệp vụ có vùng riêng dưới `/ecommerce/checkpoints`.
-- Cần thêm source module, schema nghiệp vụ và tests tương ứng; không đổi smoke fixture thành toàn bộ ứng dụng sản phẩm.
+- Bổ sung module và tests theo từng luồng; giữ smoke fixture hạ tầng độc lập với ứng dụng sản phẩm.
 
-Các điểm nối này là hướng tích hợp, không phải chức năng nghiệp vụ đã có trong repository.
+Việc có mã batch không xác nhận ingest đã chạy thành công. Trạng thái và tiêu chí nghiệm thu nằm trong [kiểm thử dữ liệu](../data/05-testing.md).

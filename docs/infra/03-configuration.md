@@ -147,8 +147,8 @@ Image gốc có thể khai báo thêm anonymous volume cho đường dẫn phụ
 
 | Đường dẫn                 | Mục đích đã chuẩn bị                        |
 | ------------------------- | ------------------------------------------- |
-| `/ecommerce/bronze`       | Dữ liệu gốc cho ingestion nghiệp vụ sau này |
-| `/ecommerce/silver`       | Event chuẩn hóa nghiệp vụ sau này           |
+| `/ecommerce/bronze`       | Snapshot bốn CSV Retailrocket nguyên bản    |
+| `/ecommerce/silver`       | Event chuẩn hóa, quarantine và duplicate audit |
 | `/ecommerce/gold`         | Aggregate/feature nghiệp vụ sau này         |
 | `/ecommerce/models`       | Model artifact sau khi có training          |
 | `/ecommerce/checkpoints`  | Checkpoint nghiệp vụ sau này                |
@@ -156,6 +156,8 @@ Image gốc có thể khai báo thêm anonymous volume cho đường dẫn phụ
 | `/ecommerce/_smoke`       | Dữ liệu kiểm thử hạ tầng                    |
 
 Smoke dùng checkpoint riêng trong thư mục của từng run dưới `_smoke`, không dùng gốc checkpoint nghiệp vụ.
+
+Job ingestion tạo snapshot bên dưới Bronze/Silver khi chạy `make ingest`; xem [layout dữ liệu](../data/02-contract-and-storage.md). `make test-data` dùng namespace UUID riêng dưới `/ecommerce/_tests/ingest`.
 
 ## 8. Khóa phiên bản và thay đổi cấu hình
 

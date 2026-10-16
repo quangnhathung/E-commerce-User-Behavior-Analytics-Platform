@@ -155,7 +155,7 @@ Nếu khởi động thất bại giữa chừng, một phần container có th�
 
 ## 9. Vòng đời một job kiểm thử
 
-Makefile gọi script quản lý; script lấy khóa file để ngăn các job smoke/persistence được quản lý chạy chồng nhau. Sau đó chạy `spark-submit` trong client.
+Makefile gọi script quản lý; script lấy khóa file dùng chung cho smoke, persistence-test, ingest và test-data để ngăn các job được quản lý chạy chồng nhau. Sau đó chạy `spark-submit` trong client. Lệnh gọi Spark thủ công không tự lấy khóa này.
 
 - Timeout mỗi lệnh job: 600 giây.
 - Nếu quá hạn, `timeout` gửi tín hiệu dừng và có thời gian kill-after 15 giây.

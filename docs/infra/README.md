@@ -35,11 +35,11 @@ Người mới nên đọc 01 → 02 → 03 → 04. Khi chạy thực tế, dùn
 
 Tổng cộng **chín service thường trực** và **ba job init**. Trạng thái kỳ vọng sau khởi động là chín service `healthy` và ba init job `Exited (0)`.
 
-## Phần chưa thuộc bản triển khai này
+## Ứng dụng trên hạ tầng và phần còn lại
 
-- Dataset được mount read-only để job có thể đọc; chưa có job ingest toàn bộ CSV vào Bronze/Silver.
-- Các thư mục Bronze/Silver/Gold đã được chuẩn bị; việc tạo thư mục không đồng nghĩa đã có dữ liệu nghiệp vụ.
-- Topic raw và DLQ đã được khởi tạo; chưa có producer nghiệp vụ, bộ validation hoặc cơ chế tự chuyển event lỗi sang DLQ.
+- Dataset và mã ứng dụng được mount read-only vào Spark client. Job batch Bronze/Silver, validation, quarantine và quality report đã có trong mã nguồn; xem [tài liệu dữ liệu](../data/README.md). Runtime ingestion vẫn cần nghiệm thu trên cụm thật.
+- Các thư mục Bronze/Silver/Gold được init chuẩn bị; việc tạo thư mục không đồng nghĩa đã có dữ liệu nghiệp vụ.
+- Topic raw và DLQ đã được khởi tạo; chưa có producer nghiệp vụ, validation streaming hoặc cơ chế tự chuyển event lỗi sang DLQ.
 - Smoke test có Structured Streaming trên dữ liệu nhỏ; chưa có pipeline tính KPI, funnel và feature nghiệp vụ.
 - Chưa có huấn luyện K-Means/Random Forest, dự đoán online, FastAPI hoặc dashboard sản phẩm.
 - Spark UI và HDFS UI là giao diện quản trị kỹ thuật, không phải dashboard phân tích thương mại điện tử.
@@ -51,7 +51,7 @@ Tại thời điểm biên soạn ngày **16/10/2026**:
 | Hạng mục                           | Bằng chứng/trạng thái                                             |
 | ---------------------------------- | ----------------------------------------------------------------- |
 | Kiểm tra cấu hình Compose          | Đã đạt trong phiên triển khai                                     |
-| Kiểm thử offline                   | 23 kiểm tra đã đạt; 7 test HTTP skipped vì môi trường cấm socket                         |
+| Kiểm thử offline hạ tầng           | 23 kiểm tra đã đạt; 7 test HTTP skipped vì môi trường cấm socket                         |
 | Cú pháp Python và Bash             | Đã kiểm tra                                                       |
 | Build image                        | Chưa xác minh thành công; bị chặn tại bước truy cập Docker daemon |
 | Smoke và persistence trên cụm thật | Chưa có kết quả chạy xác nhận                                     |

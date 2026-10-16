@@ -1,10 +1,10 @@
 # E-commerce User Behavior Analytics Platform
 
-Hạ tầng local cho đồ án Kafka → Spark → HDFS → MongoDB. Phạm vi hiện tại gồm môi trường chạy job và bộ kiểm tra hạ tầng; phần xử lý nghiệp vụ, ML, API và dashboard sẽ được xây trên nền này.
+Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Phạm vi hiện tại gồm hạ tầng Docker và luồng batch Retailrocket CSV → Bronze → Silver, với chuẩn hóa sự kiện, loại trùng, cách ly dòng lỗi và báo cáo chất lượng. Replay Kafka, KPI/funnel, ML, API và dashboard thuộc các giai đoạn tiếp theo.
 
 Kế hoạch sản phẩm đầy đủ: [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
 
-Mục lục tài liệu: [docs/README.md](docs/README.md). Hướng dẫn hạ tầng, cấu hình, vận hành và kiểm thử: [docs/infra/README.md](docs/infra/README.md).
+Mục lục tài liệu: [docs/README.md](docs/README.md). Hướng dẫn hạ tầng: [docs/infra/README.md](docs/infra/README.md). Hợp đồng dữ liệu, ingestion và kiểm thử ứng dụng: [docs/data/README.md](docs/data/README.md).
 
 ## Yêu cầu
 
@@ -52,7 +52,25 @@ make config
 make test
 ```
 
-`make test` dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils để kiểm tra bootstrap, cấu hình, cache và downloader. Test HTTP dùng socket loopback; nếu môi trường cấm tạo socket, bảy test này được ghi rõ là skipped. Các kiểm tra này không thay thế `make smoke` trên cụm đang chạy.
+`make test` chạy 30 test hạ tầng và 16 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Không cần cài PySpark trên host. Test HTTP dùng socket loopback; nếu môi trường cấm tạo socket, bảy test này được ghi rõ là skipped. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
+
+## Nạp dữ liệu lịch sử
+
+Sau khi image đã có, chạy lần lượt:
+
+```bash
+make up
+make doctor
+make smoke
+make test-data
+make ingest
+```
+
+`make up` áp dụng mount mã ứng dụng vào Spark client; thay đổi ứng dụng này không cần build lại image. `test-data` chạy fixture trên Spark/HDFS thật và dọn namespace kiểm thử riêng. `ingest` giữ nguyên bốn CSV trong Bronze, chuyển `events.csv` thành Parquet Silver phân vùng theo ngày UTC, kèm quarantine, duplicate audit và quality report.
+
+Chạy lại `make ingest` với cùng dữ liệu và mã biến đổi sẽ xác minh rồi dùng lại snapshot. Job từ chối snapshot thiếu marker, sai checksum hoặc khác phiên bản mã; không tự ghi đè dữ liệu đã công bố. Báo cáo host nằm trong `artifacts/data/`. Xem [cách chạy và xử lý lỗi](docs/data/03-ingestion.md).
+
+Mã nguồn và kiểm thử offline đã được kiểm tra; phiên công cụ chưa chạy được Spark/HDFS do quyền truy cập Docker socket. Cần hoàn tất [nghiệm thu dữ liệu](docs/data/05-testing.md) trên máy có quyền Docker trước khi xác nhận ingest thực tế thành công.
 
 ## Dịch vụ và phiên bản
 
@@ -126,9 +144,9 @@ docker compose exec spark-client bash
 docker compose exec -T spark-client python3 /opt/infra/smoke/readiness.py
 ```
 
-Driver chạy ở `spark-client`, executor kết nối về các cổng nội bộ cố định. Chỉ chạy một Spark driver tại một thời điểm với cấu hình hiện tại. Các lệnh smoke/persistence có khóa để không chạy chồng nhau.
+Driver chạy ở `spark-client`, executor kết nối về các cổng nội bộ cố định. Chỉ chạy một Spark driver tại một thời điểm với cấu hình hiện tại. Các lệnh smoke, persistence-test, ingest và test-data dùng chung khóa để không chạy chồng nhau.
 
-Khi thêm job nghiệp vụ, mount source code read-only hoặc đóng gói module vào image, rồi dùng `spark-submit --deploy-mode client`. Không dùng `local[*]` để chứng minh xử lý trên hai worker. Kafka connector đã có trong image, không thêm `--packages` tải dependency lúc demo.
+Ứng dụng được mount read-only từ `app/` vào `/opt/app`; CLI đóng gói dependency Python thành ZIP và phân phối đến executor bằng `spark-submit --deploy-mode client --py-files`. Không dùng `local[*]` để chứng minh xử lý trên hai worker. Kafka connector đã có trong image, không thêm `--packages` tải dependency lúc demo.
 
 ## Kiểm thử tích hợp
 

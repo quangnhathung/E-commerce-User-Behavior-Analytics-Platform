@@ -22,7 +22,9 @@ Nguồn: [test_infrastructure.py](../../infra/tests/test_infrastructure.py) và 
 | ComposeTests             |       8 | Đủ topology và ngân sách RAM; cổng loopback duy nhất; dependency không vòng; DataNode volume riêng và bind mount read-only; runtime nhất quán và client không nhận root credential        |
 | HadoopConfigurationTests |       1 | Replication, hostname networking và số DataNode tối thiểu                                                                                                                                 |
 
-Bổ sung ba test `CachedDownloadTests` kiểm tra cache/hash/atomic publication mà không cần socket; bảy test `DownloadTests` dùng curl thật và HTTP server loopback để kiểm tra cache, mất kết nối, SIGTERM, HTTP Range/416, checksum sai và fallback. Bổ sung hai test `SparkReadinessTests` xác nhận hai worker một core/640 MiB và từ chối worker thiếu tài nguyên. Các test Compose còn kiểm tra preflight với 8,3 GiB/thiếu RAM, credit đúng project và heap khớp tài nguyên quảng bá/container. Tổng cộng 30 test. Nếu môi trường cấm tạo socket, bảy test HTTP được ghi rõ là skipped; các lỗi bind khác vẫn làm test thất bại. Cần Bash, curl và GNU coreutils trên host.
+Bổ sung ba test `CachedDownloadTests` kiểm tra cache/hash/atomic publication mà không cần socket; bảy test `DownloadTests` dùng curl thật và HTTP server loopback để kiểm tra cache, mất kết nối, SIGTERM, HTTP Range/416, checksum sai và fallback. Bổ sung hai test `SparkReadinessTests` xác nhận hai worker một core/640 MiB và từ chối worker thiếu tài nguyên. Các test Compose còn kiểm tra preflight với 8,3 GiB/thiếu RAM, credit đúng project và heap khớp tài nguyên quảng bá/container. Suite hạ tầng có 30 test. Nếu môi trường cấm tạo socket, bảy test HTTP được ghi rõ là skipped; các lỗi bind khác vẫn làm test thất bại. Cần Bash, curl và GNU coreutils trên host.
+
+`make test` còn chạy 16 test ứng dụng, tổng cộng 46 test. Hợp đồng sự kiện, snapshot, đóng gói và hủy job được mô tả trong [kiểm thử dữ liệu](../data/05-testing.md). Kiểm thử Spark/HDFS của ingestion chạy riêng bằng `make test-data`.
 
 Các test Compose gọi CLI để expand cấu hình thành JSON từ template. Chúng không pull image, không tạo container hoặc truy cập daemon. Test setup dùng thư mục tạm; password được sinh trong test không được in ra.
 
@@ -176,7 +178,7 @@ Tất cả nằm dưới `artifacts/infra/`. Mỗi tên `.log` và `.json` là h
 - Pipeline chạy hai query nối tiếp; persistence có ba lượt job và một chu kỳ down/up.
 - Các khoảng chờ không phải số đo latency/throughput của sản phẩm.
 
-Bộ kiểm thử hiện tại không chứng minh HA vật lý, tải cao, khả năng phục hồi mọi lỗi giữa nhiều sink, chất lượng ML hoặc dữ liệu nghiệp vụ đã được ingest.
+Bộ kiểm thử hạ tầng không chứng minh HA vật lý, tải cao, khả năng phục hồi mọi lỗi giữa nhiều sink, chất lượng ML hoặc dữ liệu nghiệp vụ đã được ingest. Phần ingestion có [tiêu chí nghiệm thu riêng](../data/05-testing.md).
 
 ## 8. Trạng thái thực tế đã biết
 
