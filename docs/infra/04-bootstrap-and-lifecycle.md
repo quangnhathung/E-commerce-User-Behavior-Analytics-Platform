@@ -2,7 +2,7 @@
 
 [← Mục lục](README.md)
 
-Phần này giải thích những gì xảy ra bên trong lệnh vận hành, dựa trên [script quản lý](../infra/manage.py) và [Compose](../compose.yaml).
+Phần này giải thích những gì xảy ra bên trong lệnh vận hành, dựa trên [script quản lý](../../infra/manage.py) và [Compose](../../compose.yaml).
 
 ## 1. Toàn bộ quá trình
 

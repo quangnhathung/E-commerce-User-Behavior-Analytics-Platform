@@ -53,7 +53,7 @@ Base image tiếp tục khóa bằng digest; bốn JAR Kafka connector giữ cơ
 
 ## 4. Cache hoạt động thế nào?
 
-Hai Dockerfile dùng [script tải chung](../infra/build/download.sh). Cache nằm ở builder, được mount vào `/var/cache/apache` lúc build; không nằm trong named volume của Kafka/HDFS/MongoDB và không được đóng gói vào image.
+Hai Dockerfile dùng [script tải chung](../../infra/build/download.sh). Cache nằm ở builder, được mount vào `/var/cache/apache` lúc build; không nằm trong named volume của Kafka/HDFS/MongoDB và không được đóng gói vào image.
 
 | Cache ID | Nội dung | Công dụng |
 | --- | --- | --- |
@@ -80,7 +80,7 @@ Cache có thể bị Docker garbage collection/prune thu hồi. Đổi builder/c
 
 Package hệ điều hành được cài ở layer riêng trước downloader. Đổi downloader không bắt cài lại Java nếu layer cài package còn trong cache. Spark cài dependency Python và tải JAR ở hai layer khác nhau; đổi script JAR không bắt chạy lại pip.
 
-Compose dùng context `infra/` cho cả hai image, chọn `spark/Dockerfile` hoặc `hadoop/Dockerfile`. [infra/.dockerignore](../infra/.dockerignore) chỉ cho phép các file build cần thiết. Dataset và `.env` nằm ngoài context này; cấu hình runtime và smoke script cũng bị loại khỏi context.
+Compose dùng context `infra/` cho cả hai image, chọn `spark/Dockerfile` hoặc `hadoop/Dockerfile`. [infra/.dockerignore](../../infra/.dockerignore) chỉ cho phép các file build cần thiết. Dataset và `.env` nằm ngoài context này; cấu hình runtime và smoke script cũng bị loại khỏi context.
 
 Đường dẫn COPY đã đổi theo context chung. Nếu build thủ công, truyền context đúng:
 

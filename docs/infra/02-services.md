@@ -2,7 +2,7 @@
 
 [← Mục lục](README.md)
 
-Tên dưới đây là **service name** trong [Compose](../compose.yaml), không phải tên container cố định. Compose thêm namespace project vào tên tài nguyên.
+Tên dưới đây là **service name** trong [Compose](../../compose.yaml), không phải tên container cố định. Compose thêm namespace project vào tên tài nguyên.
 
 ## 1. Tổng quan tài nguyên
 

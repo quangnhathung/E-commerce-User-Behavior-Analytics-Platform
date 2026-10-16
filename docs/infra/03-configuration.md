@@ -2,13 +2,13 @@
 
 [← Mục lục](README.md)
 
-Nguồn giá trị là [template môi trường](../.env.example), [Compose](../compose.yaml), [Hadoop XML](../infra/config/hadoop/) và [Spark defaults](../infra/config/spark/spark-defaults.conf).
+Nguồn giá trị là [template môi trường](../../.env.example), [Compose](../../compose.yaml), [Hadoop XML](../../infra/config/hadoop/) và [Spark defaults](../../infra/config/spark/spark-defaults.conf).
 
 ## 1. Cấu hình trên host và trong container
 
 `.env.example` là template có thể đưa vào Git. `make setup` tạo cấu hình local với ID/mật khẩu thật; file local không được đưa vào Git.
 
-[Script quản lý](../infra/manage.py) đọc và kiểm tra biến trước khi điều khiển Compose. Khi gọi tiến trình con, nó bỏ các biến project cùng tên khỏi environment kế thừa để cấu hình trong file local không bị shell cha ghi đè ngoài ý muốn. Các thiết lập Docker như `DOCKER_HOST` vẫn được giữ.
+[Script quản lý](../../infra/manage.py) đọc và kiểm tra biến trước khi điều khiển Compose. Khi gọi tiến trình con, nó bỏ các biến project cùng tên khỏi environment kế thừa để cấu hình trong file local không bị shell cha ghi đè ngoài ý muốn. Các thiết lập Docker như `DOCKER_HOST` vẫn được giữ.
 
 Quy tắc này áp dụng cho lệnh chạy qua Makefile/script quản lý. Nếu gọi trực tiếp `docker compose` thì cần lưu ý quy tắc ưu tiên biến của chính Compose.
 
@@ -159,7 +159,7 @@ Smoke dùng checkpoint riêng trong thư mục của từng run dưới `_smoke`
 
 ## 8. Khóa phiên bản và thay đổi cấu hình
 
-Kafka/MongoDB được khóa image digest trong template; base Python/Java được khóa digest trong Dockerfile. Binary Hadoop/Spark và bốn JAR được kiểm tra SHA-512. Python dependency được khóa trong [requirements](../infra/spark/requirements.txt).
+Kafka/MongoDB được khóa image digest trong template; base Python/Java được khóa digest trong Dockerfile. Binary Hadoop/Spark và bốn JAR được kiểm tra SHA-512. Python dependency được khóa trong [requirements](../../infra/spark/requirements.txt).
 
 Package hệ điều hành được lấy từ repository lúc build; không tuyên bố build hermetic từng byte. Custom image local có image ID trong manifest sau khi build, nhưng có thể chưa có RepoDigest nếu chưa được đẩy lên registry.
 

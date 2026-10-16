@@ -68,7 +68,7 @@ flowchart LR
     M --> V["Driver đọc và đối chiếu"]
 ```
 
-Các bước do [smoke pipeline](../infra/smoke/pipeline.py) thực hiện. Topic kiểm thử khác hai topic nghiệp vụ; dữ liệu được gắn run ID để có thể dọn riêng.
+Các bước do [smoke pipeline](../../infra/smoke/pipeline.py) thực hiện. Topic kiểm thử khác hai topic nghiệp vụ; dữ liệu được gắn run ID để có thể dọn riêng.
 
 Checkpoint giữ tiến độ streaming. Trong kiểm thử, chạy lại cùng checkpoint phải giữ số record Parquet bằng sáu. Điều này chỉ xác minh kịch bản file sink đã viết trong test, không tự chứng minh mọi sink hoặc pipeline nghiệp vụ đều có ngữ nghĩa exactly-once.
 
@@ -104,8 +104,8 @@ Ba partition trên một Kafka broker không tạo ra ba broker hoặc khả nă
 
 ## 9. Nguồn đối chiếu
 
-- [Compose và topology](../compose.yaml)
-- [Cấu hình Hadoop](../infra/config/hadoop/hdfs-site.xml)
-- [Cấu hình Spark](../infra/config/spark/spark-defaults.conf)
+- [Compose và topology](../../compose.yaml)
+- [Cấu hình Hadoop](../../infra/config/hadoop/hdfs-site.xml)
+- [Cấu hình Spark](../../infra/config/spark/spark-defaults.conf)
 - [Chi tiết từng service](02-services.md)
 - [Ý nghĩa kiểm thử](06-testing.md)

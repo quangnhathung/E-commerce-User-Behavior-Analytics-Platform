@@ -67,7 +67,7 @@ make up
 
 ### Không tìm được Kafka data source/JAR
 
-Đối chiếu [script JAR](../infra/spark/download_jars.py), phiên bản Spark/Scala và các image đang dùng:
+Đối chiếu [script JAR](../../infra/spark/download_jars.py), phiên bản Spark/Scala và các image đang dùng:
 
 ```bash
 docker compose images

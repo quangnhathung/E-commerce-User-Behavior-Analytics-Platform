@@ -302,7 +302,7 @@ def require_buildkit():
     except InfraError as error:
         raise InfraError("Docker Buildx plugin is required before building. On Arch Linux: "
                          "sudo pacman -S docker-buildx; then check docker buildx version. "
-                         "See docs/09-build-optimization.md. " + str(error)) from error
+                         "See docs/infra/09-build-optimization.md. " + str(error)) from error
 
 
 def main():

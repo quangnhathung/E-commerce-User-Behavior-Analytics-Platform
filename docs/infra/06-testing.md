@@ -14,7 +14,7 @@ Không suy diễn kết quả tầng trước thành bằng chứng của tầng
 
 ## 2. Kiểm thử offline
 
-Nguồn: [test_infrastructure.py](../infra/tests/test_infrastructure.py) và [test_download.py](../infra/tests/test_download.py).
+Nguồn: [test_infrastructure.py](../../infra/tests/test_infrastructure.py) và [test_download.py](../../infra/tests/test_download.py).
 
 | Nhóm                     | Số test | Nội dung                                                                                                                                                                                  |
 | ------------------------ | ------: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -30,7 +30,7 @@ Các test Compose gọi CLI để expand cấu hình thành JSON từ template. 
 
 ## 3. Readiness
 
-Nguồn: [readiness.py](../infra/smoke/readiness.py).
+Nguồn: [readiness.py](../../infra/smoke/readiness.py).
 
 Phép kiểm tra xác nhận:
 
@@ -46,7 +46,7 @@ Readiness không tự sửa topology hoặc tạo lại dữ liệu. Init kiểm
 
 ## 4. Smoke test xuyên dịch vụ
 
-Nguồn: [pipeline.py](../infra/smoke/pipeline.py) và [common.py](../infra/smoke/common.py).
+Nguồn: [pipeline.py](../../infra/smoke/pipeline.py) và [common.py](../../infra/smoke/common.py).
 
 ### 4.1. Chuẩn bị
 
@@ -134,7 +134,7 @@ JSON dưới đây **chỉ minh họa schema**, không phải kết quả đo th
 
 ## 6. Persistence test
 
-Nguồn: [persistence.py](../infra/smoke/persistence.py) và action tương ứng trong [manager](../infra/manage.py).
+Nguồn: [persistence.py](../../infra/smoke/persistence.py) và action tương ứng trong [manager](../../infra/manage.py).
 
 ### Create
 
