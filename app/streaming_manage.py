@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Host CLI for bounded streaming demos; Python standard library only."""
+"""Host CLI for streaming demos and historical behavior; standard library only."""
 import argparse
 from contextlib import contextmanager, nullcontext
 import fcntl
@@ -17,11 +17,15 @@ sys.path[:0] = [str(APP), str(ROOT)]
 from infra import manage as infra
 from manage import atomic_json
 from ecommerce_analytics.contracts import sha256_file
+from ecommerce_behavior.contracts import BEHAVIOR_VERSION
 from ecommerce_streaming.contracts import DEFAULT_END, DEFAULT_START, PIPELINE_VERSION, validate_request
 from streaming_monitor import Monitor
 
 ARTIFACTS = ROOT / "artifacts/streaming"
-SPARK_ACTIONS = {"prepare-demo", "stream", "test-stream"}
+ANALYTICS = ROOT / "artifacts/analytics"
+SPARK_ACTIONS = {"prepare-demo", "stream", "test-stream", "analyze-behavior", "test-behavior"}
+ACTIONS = ("prepare-demo", "stream", "replay", "stream-status", "test-stream",
+           "analyze-behavior", "behavior-status", "test-behavior")
 
 
 @contextmanager
@@ -65,7 +69,7 @@ def launch(action, specification, directory, *, stdin=None, quiet=False):
     archive = f"/tmp/ecommerce-stream-{token}.zip"
     spec_path = f"/tmp/ecommerce-stream-{token}.json"
     process, stopped = None, False
-    monitor = Monitor() if action in ("stream", "test-stream") else None
+    monitor = Monitor() if action in ("stream", "test-stream", "analyze-behavior", "test-behavior") else None
     try:
         packed = json.loads(infra.execute(infra.compose("exec", "-T", "spark-client", "python3", "/opt/app/package_code.py",
                             "--output", archive, "--profile", "streaming"), capture=True, timeout=30))
@@ -184,6 +188,7 @@ def prepare_demo(args):
     def spec(code_hash):
         request = {"run_id": identity, "start": args.start, "end": args.end, "rate": args.rate,
                    "pipeline_version": PIPELINE_VERSION, "code_sha256": code_hash,
+                   "behavior_version": BEHAVIOR_VERSION,
                    "dataset_version": latest["dataset_version"], "silver_path": latest["silver_path"],
                    "base": "/ecommerce", "topic": "ecommerce.events.raw", "dlq_topic": "ecommerce.events.dlq"}
         validate_request(request)
@@ -210,24 +215,70 @@ def prepare_demo(args):
     print(f"Prepared RUN_ID={identity}; start make stream and make replay in separate terminals.")
 
 
+def analyze_history():
+    latest = json.loads((ROOT / "artifacts/data/latest-ingest.json").read_text())
+
+    def spec(code_hash):
+        return {"request": {"behavior_version": BEHAVIOR_VERSION, "code_sha256": code_hash,
+                            "dataset_version": latest["dataset_version"], "silver_path": latest["silver_path"],
+                            "base": "/ecommerce"}}
+
+    result = launch("analyze-behavior", spec, ANALYTICS / "attempts")
+    directory = ANALYTICS / result["analysis_id"]
+    atomic_json(directory / "report.json", result)
+    atomic_json(ANALYTICS / "latest-analysis.json", {"analysis_id": result["analysis_id"]})
+    print(f"Historical behavior published: {result['analysis_id']}")
+
+
+def behavior_status(args):
+    if args.item_id is not None and not re.fullmatch(r"[0-9]+", args.item_id):
+        raise infra.InfraError("ITEM_ID must be a nonempty digit string")
+    if args.run_id:
+        identity = run_id(args.run_id)
+        config = json.loads((ARTIFACTS / identity / "config.json").read_text())
+        if config["run_id"] != identity:
+            raise infra.InfraError("Local run config has the wrong RUN_ID")
+        specification = {"config": config, "item_id": args.item_id}
+        directory = ARTIFACTS / identity
+    else:
+        analysis_id = json.loads((ANALYTICS / "latest-analysis.json").read_text())["analysis_id"]
+        if not re.fullmatch(r"[0-9a-f]{64}", analysis_id):
+            raise infra.InfraError("Invalid historical analysis ID")
+        specification = {"analysis_id": analysis_id, "item_id": args.item_id}
+        directory = ANALYTICS / analysis_id
+    result = launch("behavior-status", specification, directory)
+    atomic_json(directory / "behavior-status.json", result)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("prepare-demo", "stream", "replay", "stream-status", "test-stream"))
+    parser.add_argument("action", choices=ACTIONS)
     parser.add_argument("--run-id", default=os.environ.get("RUN_ID") or None)
     parser.add_argument("--start", default=os.environ.get("START") or DEFAULT_START)
     parser.add_argument("--end", default=os.environ.get("END") or DEFAULT_END)
     parser.add_argument("--rate", type=float, default=os.environ.get("RATE") or 10)
+    parser.add_argument("--item-id", default=os.environ.get("ITEM_ID") or None)
     args = parser.parse_args()
     env = infra.read_env(infra.ENV_FILE)
     infra.validate_env(env)
-    if args.action != "stream-status":
+    if args.action not in ("stream-status", "behavior-status"):
         infra.preflight(env)
     lock = infra.driver_lock() if args.action in SPARK_ACTIONS else producer_lock() if args.action == "replay" else nullcontext()
     with lock:
-        if args.action != "stream-status":
+        if args.action not in ("stream-status", "behavior-status"):
             infra.assert_services()
         if args.action == "prepare-demo":
             prepare_demo(args)
+            return
+        if args.action == "analyze-behavior":
+            analyze_history()
+            return
+        if args.action == "behavior-status":
+            behavior_status(args)
+            return
+        if args.action == "test-behavior":
+            result = launch(args.action, {}, ANALYTICS / "tests")
+            atomic_json(ANALYTICS / "test-behavior.json", result)
             return
         if args.action == "test-stream":
             result = launch(args.action, {}, ARTIFACTS / "tests")

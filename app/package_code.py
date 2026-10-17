@@ -12,7 +12,7 @@ def package_code(destination, source=None, profile="ingest"):
         raise ValueError("Unknown application archive profile")
     packages = ["ecommerce_analytics"]
     if profile == "streaming":
-        packages.append("ecommerce_streaming")
+        packages.extend(("ecommerce_streaming", "ecommerce_behavior"))
     destination = Path(destination)
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for path in sorted(path for package in packages for path in (source / package).rglob("*.py")):

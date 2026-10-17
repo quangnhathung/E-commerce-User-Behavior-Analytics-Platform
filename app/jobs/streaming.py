@@ -7,7 +7,8 @@ import sys
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=("prepare-demo", "stream", "replay", "stream-status", "test-stream"))
+    parser.add_argument("action", choices=("prepare-demo", "stream", "replay", "stream-status", "test-stream",
+                                           "analyze-behavior", "behavior-status", "test-behavior"))
     parser.add_argument("--spec-file", required=True)
     parser.add_argument("--code-archive", required=True)
     parser.add_argument("--code-sha256", required=True)
@@ -21,12 +22,21 @@ def main():
     config = spec.get("config")
     if config is not None and config["code_sha256"] != args.code_sha256:
         raise ValueError("Run code fingerprint changed; restore code or prepare a new run")
-    if args.action == "prepare-demo" and spec["request"]["code_sha256"] != args.code_sha256:
+    if args.action in ("prepare-demo", "analyze-behavior") and spec["request"]["code_sha256"] != args.code_sha256:
         raise ValueError("Prepared request has the wrong code fingerprint")
     store, spark = Store(), None
     try:
         if args.action == "stream-status":
             result = store.status(config)
+        elif args.action == "behavior-status":
+            if config is not None:
+                from ecommerce_behavior.store import BehaviorStore
+                state = store.status(config)
+                result = {"run_id": config["run_id"], **BehaviorStore(store.db).page(
+                    state["funnel"]["snapshot_id"], is_final=state["funnel"]["is_final"], item_id=spec.get("item_id"))}
+            else:
+                from ecommerce_behavior.historical import status
+                result = status(store, spec["analysis_id"], spec.get("item_id"))
         elif args.action == "replay":
             from ecommerce_streaming.kafka_io import replay
             result = replay(sys.stdin, config, store)
@@ -40,8 +50,14 @@ def main():
             elif args.action == "stream":
                 from ecommerce_streaming.stream import run_stream
                 result = run_stream(spark, config, store)
-            else:
+            elif args.action == "test-stream":
                 from ecommerce_streaming.integration import run_tests
+                result = run_tests(spark, store, args.code_sha256)
+            elif args.action == "analyze-behavior":
+                from ecommerce_behavior.historical import analyze
+                result = analyze(spark, store, spec["request"])
+            else:
+                from ecommerce_behavior.integration import run_tests
                 result = run_tests(spark, store, args.code_sha256)
     finally:
         if spark is not None:
