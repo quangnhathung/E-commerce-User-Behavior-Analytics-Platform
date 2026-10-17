@@ -60,12 +60,12 @@ Invalid/late được gửi DLQ và giữ audit HDFS. DLQ ID là SHA-256 tọa �
 | `max_event_time` | Mốc event-time accepted lớn nhất |
 | `active_visitors` | Visitor trong `(max_event_time − 5 phút, max_event_time]` |
 
-Distinct toàn run tính lại từ event đã nhận, không cộng distinct từng phút. Một đơn nhiều item có nhiều purchase event nhưng một transaction. Run không nhận thêm số liệu lịch sử ngoài đoạn replay. Những thống kê này chưa phải funnel có session, doanh thu hoặc prediction.
+Distinct toàn run tính lại từ event đã nhận, không cộng distinct từng phút. Một đơn nhiều item có nhiều purchase event nhưng một transaction. Run không nhận thêm số liệu lịch sử ngoài đoạn replay. Những KPI đếm này có định nghĩa riêng với [funnel có session](../analytics/01-contract.md), doanh thu hoặc prediction. `stream-v2` thêm `behavior_version` và `expected_behavior` vào prepared config; không đổi schema payload Kafka.
 
 ## 4. Công bố và retry
 
 Bronze → Silver → Gold → DLQ ACK → MongoDB snapshot → con trỏ công bố → Spark checkpoint. HDFS dùng snapshot không ghi đè. Khi retry, batch đã commit được kiểm tra rồi tái sử dụng, giữ nguyên quyết định accepted/late/duplicate.
 
-MongoDB replace/upsert theo ID xác định, không cộng dồn `$inc`. Mọi document KPI của batch được ghi xong trước khi đổi `committed_batch_id` trong run. Reader lấy pointer trước rồi đọc đúng batch đó, nên không thấy phần snapshot mới ghi dở.
+MongoDB replace/upsert theo ID xác định, không cộng dồn `$inc`. Mọi document KPI và funnel của batch được ghi xong, xác minh sản phẩm rồi mới đổi `committed_batch_id` trong run. Reader lấy pointer trước rồi đọc đúng batch đó, nên không thấy phần snapshot mới ghi dở.
 
 Không có transaction chung giữa Kafka/HDFS/MongoDB. Lỗi một sink làm callback thất bại để Spark chạy lại. Xem [Spark foreachBatch](https://spark.apache.org/docs/3.5.7/structured-streaming-programming-guide.html#foreachbatch) và [MongoDB atomicity](https://www.mongodb.com/docs/manual/core/write-operations-atomicity/).

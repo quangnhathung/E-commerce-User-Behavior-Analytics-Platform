@@ -1,10 +1,10 @@
 # E-commerce User Behavior Analytics Platform
 
-Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Mã hiện tại gồm hạ tầng Docker, ingestion Retailrocket CSV → Bronze → Silver, replay Kafka và streaming KPI. Funnel, ML, API và dashboard thuộc các giai đoạn tiếp theo.
+Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Mã hiện tại gồm hạ tầng Docker, ingestion Retailrocket CSV → Bronze → Silver, replay Kafka, streaming KPI và session/funnel lịch sử lẫn streaming. ML, API và dashboard thuộc các giai đoạn tiếp theo.
 
 Kế hoạch sản phẩm đầy đủ: [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
 
-Mục lục tài liệu: [docs/README.md](docs/README.md). Hướng dẫn hạ tầng: [docs/infra/README.md](docs/infra/README.md). Ingestion: [docs/data/README.md](docs/data/README.md). Replay/KPI: [docs/streaming/README.md](docs/streaming/README.md).
+Mục lục tài liệu: [docs/README.md](docs/README.md). Hướng dẫn hạ tầng: [docs/infra/README.md](docs/infra/README.md). Ingestion: [docs/data/README.md](docs/data/README.md). Replay/KPI: [docs/streaming/README.md](docs/streaming/README.md). Session/funnel: [docs/analytics/README.md](docs/analytics/README.md).
 
 ## Yêu cầu
 
@@ -52,7 +52,7 @@ make config
 make test
 ```
 
-`make test` chạy 34 test hạ tầng và 55 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Không cần cài PySpark trên host. Test HTTP dùng socket loopback; nếu môi trường cấm tạo socket, bảy test này được ghi rõ là skipped. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
+`make test` chạy 34 test hạ tầng và 78 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Không cần cài PySpark trên host. Test HTTP dùng socket loopback; nếu môi trường cấm tạo socket, bảy test này được ghi rõ là skipped. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
 
 ## Nạp dữ liệu lịch sử
 
@@ -85,7 +85,20 @@ Terminal A chạy `make stream RUN_ID=demo-001`. Khi có `STREAM_READY`, termina
 
 Nguồn mặc định là 2.692 event trong `[10:00,16:00) UTC ngày 10/09/2015`, tốc độ 10 event/giây. Mỗi run giới hạn 10.000 event, giữ ngân sách container khoảng 7 GiB; tính năng này không cần image/service mới. Source và checkpoint cũ được giữ để tiếp tục. Chi tiết: [vận hành streaming](docs/streaming/03-operations.md).
 
-Kiểm thử offline đã đạt. Log người dùng cung cấp có 7/8 test streaming đạt, một test lỗi Kafka leader ngay sau tạo topic. Đã bổ sung chờ topic/retry offset và kiểm thử hồi quy; **chưa nghiệm thu runtime sau sửa** do phiên công cụ bị từ chối Docker socket. Xem [kiểm thử và phục hồi](docs/streaming/04-testing-and-recovery.md).
+Artifact streaming phiên bản trước xác nhận 8/8 test đạt, cleanup và monitor thành công. Bản hiện tại dùng `stream-v2`, bổ sung session/funnel và có mười test tích hợp cần chạy lại. Dùng RUN_ID mới sau khi cập nhật mã; code/checkpoint run cũ được giữ nguyên. Phiên công cụ vẫn bị từ chối Docker socket, **chưa nghiệm thu runtime session/funnel**. Xem [kiểm thử và phục hồi](docs/streaming/04-testing-and-recovery.md).
+
+## Session và funnel
+
+Với Silver đã sẵn sàng và không có Spark driver khác đang chạy:
+
+```bash
+make test-behavior
+make analyze-behavior
+make behavior-status
+make behavior-status ITEM_ID=355908
+```
+
+Batch phân tích toàn bộ lịch sử. Streaming tính cùng quy tắc trên accepted event của từng run: ngắt phiên khi không hoạt động quá 30 phút, funnel đúng thứ tự và cùng sản phẩm. Gold giữ session/session–item; MongoDB giữ funnel tổng quan và toàn bộ sản phẩm, công bố theo snapshot cùng KPI. `make behavior-status RUN_ID=...` đọc kết quả demo. Chi tiết: [hợp đồng, vận hành và nghiệm thu](docs/analytics/README.md).
 
 ## Dịch vụ và phiên bản
 

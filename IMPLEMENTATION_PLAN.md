@@ -1,5 +1,7 @@
 # Kế hoạch triển khai E-commerce User Behavior Analytics Platform trong 7 ngày
 
+> Cập nhật triển khai 17/10/2026: đã có hạ tầng, ingestion, replay/KPI và mã session/funnel lịch sử lẫn streaming. Cấu hình thực tế đã giảm xuống khoảng **7 GiB**, thay cho ngân sách 10 GB dự kiến trong kế hoạch ban đầu dưới đây. Kiểm thử offline đạt; session/funnel mới còn chờ nghiệm thu trên Docker thật. Xem [tài liệu hiện hành](docs/README.md) và [nghiệm thu hành vi](docs/analytics/04-testing.md). Các mốc ngày và hiện trạng ban đầu bên dưới là lộ trình gốc, không phải báo cáo đã hoàn thành.
+
 ## 1. Mục tiêu, hiện trạng và phạm vi đã chốt
 
 Xây dựng đồ án chạy được toàn bộ chuỗi **dữ liệu hành vi → Kafka → Spark → HDFS → Machine Learning → MongoDB → API → dashboard**, có kiểm thử và bằng chứng xử lý phân tán.
