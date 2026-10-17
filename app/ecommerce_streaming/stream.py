@@ -3,6 +3,9 @@ import json
 import math
 import time
 
+from ecommerce_behavior.contracts import product_fingerprint
+from ecommerce_behavior.pipeline import product_rows
+from ecommerce_behavior.store import BehaviorStore
 from .batch import Processor
 from .contracts import digest, drained, instant, utc_now
 from .storage import Storage, read_config
@@ -34,6 +37,13 @@ def final_report(storage, store, config, *, started):
                                          {"_id": 0, "run_id": 0, "batch_id": 0}).sort("window_start", 1))
     if minutes != actual["minutes"]:
         raise ValueError("Published MongoDB minute KPI differs from committed HDFS Gold")
+    behavior = storage.read_json(batch["gold_path"] + "/behavior.json")
+    if behavior != config["expected_behavior"]:
+        raise ValueError("Final session/funnel results differ from the independent prepared reference")
+    fingerprint = product_fingerprint(product_rows(storage.spark, batch["gold_path"]))
+    if fingerprint != {key: behavior[key] for key in fingerprint}:
+        raise ValueError("Gold funnel products differ from the prepared reference")
+    BehaviorStore(store.db).verify(f"{config['run_id']}:{state['committed_batch_id']}", behavior)
     if not drained(batch["processed_offsets"], state["producer"]["end_offsets"]):
         raise ValueError("The acknowledged producer offsets have not drained")
     workers = state["worker_hosts"]
@@ -64,7 +74,7 @@ def final_report(storage, store, config, *, started):
             "minimum_block_replicas": 2, "checkpoint_batch_id": state["committed_batch_id"],
             "steady_state_latency_p95_seconds": p95, "latency_samples": len(samples),
             "performance_target_met": p95 <= 60 if p95 is not None else None,
-            "batch_seconds": durations}
+            "batch_seconds": durations, "behavior": behavior}
 
 
 def run_stream(spark, config, store, fault=None):

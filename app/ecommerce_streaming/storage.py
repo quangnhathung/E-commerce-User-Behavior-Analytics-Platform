@@ -1,9 +1,13 @@
-"""Streaming-only Hadoop additions; the historical ingestion package stays frozen."""
+"""Application Hadoop additions; the historical ingestion package stays frozen."""
 from ecommerce_analytics.hdfs import Hdfs
 from ecommerce_analytics.snapshots import verify_snapshot, verify_replicas
 
 
 class Storage(Hdfs):
+    def __init__(self, spark):
+        super().__init__(spark)
+        self.spark = spark
+
     def checkpoint_commits(self, root):
         directory = root + "/commits"
         if not self.exists(directory):

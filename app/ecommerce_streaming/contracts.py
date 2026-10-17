@@ -8,8 +8,9 @@ import re
 import socket
 
 from ecommerce_analytics.contracts import canonical_json
+from ecommerce_behavior.contracts import BEHAVIOR_VERSION
 
-PIPELINE_VERSION = "stream-v1"
+PIPELINE_VERSION = "stream-v2"
 MAX_EVENTS = 10_000
 DEFAULT_START = "2015-09-10T10:00:00.000Z"
 DEFAULT_END = "2015-09-10T16:00:00.000Z"
@@ -52,6 +53,8 @@ def validate_request(request):
         raise ValueError("RATE must be greater than zero and at most 10 events/second")
     if request["pipeline_version"] != PIPELINE_VERSION:
         raise ValueError("Unsupported pipeline version")
+    if request.get("behavior_version") != BEHAVIOR_VERSION:
+        raise ValueError("Unsupported behavior version")
     if not HEX.fullmatch(request["code_sha256"]) or not HEX.fullmatch(request["dataset_version"]):
         raise ValueError("Invalid source/code fingerprint")
 

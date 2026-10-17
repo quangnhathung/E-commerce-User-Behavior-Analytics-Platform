@@ -17,8 +17,21 @@ class Collection:
     def __init__(self):
         self.documents = {}
 
-    def create_index(self, keys):
+    def create_index(self, keys, **kwargs):
         pass
+
+    def find(self, query, projection=None):
+        def matches(document):
+            return all(document.get(key) == value for key, value in query.items())
+        values = []
+        for document in self.documents.values():
+            if matches(document):
+                result = copy.deepcopy(document)
+                for key, included in (projection or {}).items():
+                    if not included:
+                        result.pop(key, None)
+                values.append(result)
+        return Cursor(values)
 
     def find_one(self, query, projection=None):
         result = copy.deepcopy(self.documents.get(query["_id"]))
@@ -67,6 +80,16 @@ class Database:
 
     def __getattr__(self, name):
         return self[name]
+
+
+class Cursor(list):
+    def sort(self, keys, direction=None):
+        for key, order in reversed(keys if isinstance(keys, list) else [(keys, direction)]):
+            super().sort(key=lambda row: row[key], reverse=order < 0)
+        return self
+
+    def limit(self, count):
+        return Cursor(self[:count])
 
 
 class StoreTests(unittest.TestCase):

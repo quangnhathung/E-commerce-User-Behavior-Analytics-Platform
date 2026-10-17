@@ -1,6 +1,7 @@
-"""Mongo control plane and immutable KPI snapshots with an atomic run pointer."""
+"""Mongo control plane and KPI/funnel snapshots with an atomic run pointer."""
 import os
 
+from ecommerce_behavior.store import BehaviorStore
 from .contracts import digest, utc_now
 
 
@@ -31,6 +32,7 @@ class Store:
         self.load(config)
         for name in ("stream_batches", "kpi_overview", "kpi_minute"):
             self.db[name].create_index([("run_id", 1), ("batch_id", 1)])
+        BehaviorStore(self.db).indexes()
 
     def load(self, config):
         document = self.db.stream_runs.find_one({"_id": config["run_id"]})
@@ -52,10 +54,22 @@ class Store:
             "consumer.status": status, "consumer.updated_at": utc_now(),
             **{"consumer." + key: value for key, value in extra.items()}}})
 
-    def publish(self, config, batch_id, metrics, metadata, fault=None):
+    def publish(self, config, batch_id, metrics, metadata, fault=None, *, behavior=None, products=None):
         from pymongo import ReplaceOne
         run_id = config["run_id"]
         key = f"{run_id}:{batch_id}"
+        if config.get("pipeline_version") == "stream-v2" and behavior is None:
+            raise ValueError("Streaming v2 requires a funnel snapshot before publishing KPI")
+        current = self.load(config)["committed_batch_id"]
+        if batch_id < current:
+            raise ValueError("Refusing to move the run snapshot pointer backwards")
+        previous = self.db.kpi_overview.find_one({"_id": key}, {"_id": 0, "run_id": 0, "batch_id": 0})
+        if previous is not None and previous != metrics["overview"]:
+            raise ValueError("Refusing to change an existing KPI snapshot")
+        if behavior is not None:
+            previous_funnel = BehaviorStore(self.db).overview(key)
+            if previous_funnel is not None and previous_funnel != behavior:
+                raise ValueError("Refusing to change an existing funnel snapshot")
         self.db.kpi_overview.replace_one({"_id": key}, {
             "_id": key, "run_id": run_id, "batch_id": batch_id, **metrics["overview"]}, upsert=True)
         operations = []
@@ -70,6 +84,8 @@ class Store:
                     fault("mongo_mid_minutes")
         if operations:
             self.db.kpi_minute.bulk_write(operations, ordered=True)
+        if behavior is not None:
+            BehaviorStore(self.db).publish(key, behavior, products, {"run_id": run_id, "batch_id": batch_id}, fault=fault)
         if fault:
             fault("mongo_before_pointer")
         self.db.stream_batches.replace_one({"_id": key}, {
@@ -98,14 +114,18 @@ class Store:
         projection = {"_id": 0, "run_id": 0, "batch_id": 0}
         overview = self.db.kpi_overview.find_one({"_id": key}, projection) if batch_id >= 0 else None
         batch = self.db.stream_batches.find_one({"_id": key}, {"_id": 0}) if batch_id >= 0 else None
+        funnel = BehaviorStore(self.db).overview(key) if batch_id >= 0 else None
+        if config.get("pipeline_version") == "stream-v2" and batch_id >= 0 and funnel is None:
+            raise ValueError("Published streaming funnel snapshot is missing")
         return {"run_id": config["run_id"], "producer": run["producer"], "consumer": run["consumer"],
                 "committed_batch_id": batch_id, "worker_hosts": run["worker_hosts"],
-                "overview": overview, "batch": batch, "report": run.get("report")}
+                "overview": overview, "batch": batch, "report": run.get("report"),
+                "funnel": {"snapshot_id": key, "is_final": run["consumer"]["status"] == "completed", "overview": funnel}}
 
     def finish(self, config, report):
         self.db.stream_runs.update_one({"_id": config["run_id"]}, {"$set": {
             "consumer.status": "completed", "consumer.updated_at": utc_now(), "report": report}})
 
     def cleanup(self, run_ids):
-        for name in ("stream_runs", "stream_batches", "kpi_overview", "kpi_minute"):
+        for name in ("stream_runs", "stream_batches", "kpi_overview", "kpi_minute", "funnel_overview", "funnel_products"):
             self.db[name].delete_many({"run_id": {"$in": list(run_ids)}})
