@@ -12,6 +12,8 @@ import uuid
 from pyspark.sql import types as T
 from ecommerce_analytics.contracts import canonical_json
 from ecommerce_analytics.snapshots import materialize, write_json
+from ecommerce_behavior.contracts import BEHAVIOR_VERSION, reference as behavior_reference
+from ecommerce_behavior.store import BehaviorStore
 from .batch import Processor
 from .contracts import (BUSINESS_FIELDS, PIPELINE_VERSION, business_hash, paths,
                         reference_metrics, utc_now, instant)
@@ -56,11 +58,13 @@ def run_tests(spark, store, code_sha256):
         run_ids.append(run_id)
         request = {"run_id": run_id, "start": "2015-09-10T10:00:00.000Z", "end": "2015-09-10T16:00:00.000Z",
                    "rate": 10, "pipeline_version": PIPELINE_VERSION, "code_sha256": code_sha256,
+                   "behavior_version": BEHAVIOR_VERSION,
                    "dataset_version": "a" * 64, "silver_path": "fixture", "base": base,
                    "topic": raw, "dlq_topic": dlq}
         content = "".join(canonical_json(event) + "\n" for event in source).encode()
         config = {**request, "request": request, "paths": paths(run_id, base), "event_count": len(source),
                   "replay_sha256": hashlib.sha256(content).hexdigest(), "expected": expected(reference if reference is not None else source),
+                  "expected_behavior": behavior_reference(reference if reference is not None else source, run_id)["summary"],
                   "initial_offsets": end_offsets(raw)}
 
         def build(staging):
@@ -91,6 +95,9 @@ def run_tests(spark, store, code_sha256):
         test.assertEqual(config["expected"]["overview"], state["overview"])
         actual = storage.read_json(state["batch"]["gold_path"] + "/metrics.json")
         test.assertEqual(config["expected"], actual)
+        funnel = storage.read_json(state["batch"]["gold_path"] + "/behavior.json")
+        test.assertEqual(config["expected_behavior"], funnel)
+        BehaviorStore(store.db).verify(state["funnel"]["snapshot_id"], funnel)
 
     try:
         # Record ownership before the asynchronous create: partial creation is cleaned too.
@@ -126,6 +133,7 @@ def run_tests(spark, store, code_sha256):
                     self.assertTrue(second["reused"])
                     self.assertEqual(first["manifest"], second["manifest"])
                     self.assertEqual(expected(events), first["config"]["expected"])
+                    self.assertEqual(behavior_reference(events, run_id)["summary"], first["config"]["expected_behavior"])
                     prepared = [json.loads(line) for line in (Path(local) / "first.jsonl").read_text().splitlines()]
                     self.assertEqual(sorted(events, key=lambda event: (event["event_time"], event["event_id"])), prepared)
 
@@ -159,7 +167,7 @@ def run_tests(spark, store, code_sha256):
 
             def test_fault_retries_preserve_snapshot_and_counts(self):
                 for stage in ("after_bronze", "after_silver", "after_gold", "after_dlq",
-                              "mongo_mid_minutes", "mongo_before_pointer", "after_mongo_publish"):
+                              "mongo_mid_minutes", "mongo_mid_funnel_products", "mongo_before_pointer", "after_mongo_publish"):
                     with self.subTest(stage=stage):
                         config = config_for()
                         first, offsets = frame(config, events[:3])
@@ -179,6 +187,30 @@ def run_tests(spark, store, code_sha256):
                         Processor(spark, storage, store, config)(second, 1)
                         assert_kpi(self, config)
                         self.assertEqual(2, store.db.stream_batches.count_documents({"run_id": config["run_id"]}))
+
+            def test_accepted_late_bridge_merges_sessions_across_batches(self):
+                source = [{**events[0], "event_time": "2015-09-10T10:00:00.000Z"},
+                          {**events[2], "event_time": "2015-09-10T10:25:00.000Z"},
+                          {**events[3], "event_time": "2015-09-10T10:35:00.000Z"}]
+                config = config_for(source)
+                first, offsets = frame(config, [source[0], source[2]])
+                process = Processor(spark, storage, store, config)
+                process(first, 0)
+                self.assertEqual(2, store.status(config)["funnel"]["overview"]["total_sessions"])
+                second, _ = frame(config, [source[1]], offsets)
+                process(second, 1)
+                assert_kpi(self, config)
+                self.assertEqual(1, store.status(config)["funnel"]["overview"]["purchase_sessions"])
+
+            def test_invalid_only_batch_publishes_empty_funnel_before_valid_events(self):
+                config = config_for()
+                first, offsets = frame(config, [b"{"])
+                process = Processor(spark, storage, store, config)
+                process(first, 0)
+                self.assertEqual(0, store.status(config)["funnel"]["overview"]["total_sessions"])
+                second, _ = frame(config, events, offsets)
+                process(second, 1)
+                assert_kpi(self, config)
 
             def test_missing_checkpoint_is_refused(self):
                 config = config_for()
@@ -250,7 +282,7 @@ def run_tests(spark, store, code_sha256):
         outcome = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(StreamTests))
         if not outcome.wasSuccessful():
             raise RuntimeError(f"Streaming integration failed: {len(outcome.failures)} failures, {len(outcome.errors)} errors")
-        results = {"passed": True, "tests_run": outcome.testsRun, "fault_scenarios": 7, "test_root": base,
+        results = {"passed": True, "tests_run": outcome.testsRun, "fault_scenarios": 8, "test_root": base,
                    "run_ids": run_ids, "minimum_block_replicas": 2}
     finally:
         errors = []

@@ -1,10 +1,12 @@
 """Create a bounded, sorted replay without changing the historical Silver snapshot."""
+import json
 from pathlib import Path
 
 from pyspark.sql import functions as F
 
 from ecommerce_analytics.contracts import canonical_json, sha256_file
 from ecommerce_analytics.snapshots import materialize, write_json
+from ecommerce_behavior.contracts import reference
 from .contracts import (BUSINESS_FIELDS, MAX_EVENTS, business_hash, iso, paths,
                         validate_request)
 from .kafka_io import end_offsets
@@ -54,6 +56,8 @@ def prepare(spark, request, local_output, store):
         config = {**request, "request": request, "paths": paths(request["run_id"], request["base"]),
                   "event_count": count, "replay_sha256": sha256_file(output), "expected": expected,
                   "initial_offsets": end_offsets(request["topic"])}
+        with output.open(encoding="utf-8") as replay_source:
+            config["expected_behavior"] = reference((json.loads(line) for line in replay_source), request["run_id"])["summary"]
         storage.copy_from_local(str(output), staging + "/events.jsonl")
         if storage.sha256(staging + "/events.jsonl") != config["replay_sha256"]:
             raise ValueError("Prepared replay copy checksum mismatch")

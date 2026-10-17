@@ -13,11 +13,11 @@ Luồng ứng dụng: **Silver lịch sử → JSON Lines replay → Kafka → S
 
 ## Phạm vi
 
-Mã nguồn đã có prepare/replay, streaming, Bronze/Silver/Gold theo batch, quarantine, DLQ, KPI và trạng thái MongoDB. Lượt demo tự kết thúc khi offset đã ACK được xử lý và checkpoint batch cuối tồn tại.
+Mã nguồn đã có prepare/replay, streaming, Bronze/Silver/Gold theo batch, quarantine, DLQ, KPI và trạng thái MongoDB. `stream-v2` bổ sung [session và funnel](../analytics/README.md) cùng snapshot KPI. Lượt demo tự kết thúc khi offset đã ACK được xử lý, checkpoint batch cuối tồn tại và KPI/funnel đã đối soát.
 
 Nguồn mặc định là `[2015-09-10T10:00:00.000Z, 2015-09-10T16:00:00.000Z)`: 2.692 event, gồm 2.596 view, 69 add to cart, 27 purchase event; 19 transaction, 1.860 visitor và 17 buyer. Tốc độ tối đa trong v1 là 10 event/giây, tương ứng khoảng 4,5 phút phát nguồn mặc định, chưa tính khởi động/drain.
 
-Mỗi run có tối đa 10.000 event; KPI được tính lại từ Silver đã nhận của run sau mỗi batch. Funnel, simulator, feature, ML, API/dashboard và replay toàn bộ 2,76 triệu event chưa thuộc giai đoạn này.
+Mỗi run có tối đa 10.000 event; KPI và session/funnel được tính lại từ Silver đã nhận của run sau mỗi batch. Simulator, feature, ML, API/dashboard và replay toàn bộ 2,76 triệu event chưa thuộc giai đoạn này. Batch session/funnel toàn bộ lịch sử chạy riêng bằng `make analyze-behavior`.
 
 ## Chạy nhanh
 
@@ -46,4 +46,4 @@ Mã ứng dụng đã được mount tại `/opt/app`; không thêm service, vol
 
 ## Trạng thái kiểm chứng
 
-Kiểm thử offline của streaming đã đạt, archive ingest giữ nguyên SHA-256. Nguồn demo đã được đối soát offline. Log người dùng ngày 17/10/2026 xác nhận 7/8 test tích hợp đạt; test DLQ lỗi đọc offset Kafka ngay sau tạo topic. Bản sửa thêm chờ topic/retry có deadline và 12 test hồi quy đã đạt. Phiên công cụ vẫn bị từ chối Docker socket, nên **chưa xác minh `test-stream` sau sửa hoặc demo streaming thật**. Bằng chứng smoke/ingest cũ chỉ chứng minh các giai đoạn tương ứng. Xem [tiêu chí nghiệm thu và hướng dẫn chạy lại](04-testing-and-recovery.md).
+Artifact hiện tại xác nhận 10/10 test streaming đạt, tám fault scenario, cleanup/monitor thành công. Run `behavior-demo-001` đã đạt với 2.692 event, backlog 0, p95 37,287 giây, hai worker/hai replica và funnel final. ML batch dùng archive riêng, giữ SHA streaming hiện tại. Dùng RUN_ID mới để chuẩn bị demo khác. Xem [tiêu chí nghiệm thu](04-testing-and-recovery.md) và [bằng chứng hành vi](../analytics/04-testing.md).

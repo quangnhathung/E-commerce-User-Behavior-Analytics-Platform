@@ -13,6 +13,7 @@ import zipfile
 
 from helpers import APP
 from ecommerce_analytics.contracts import canonical_json
+from ecommerce_behavior.contracts import BEHAVIOR_VERSION
 from ecommerce_streaming.contracts import (BUSINESS_FIELDS, DEFAULT_END, DEFAULT_START, PIPELINE_VERSION,
     business_hash, dlq_record, drained, instant, normalize_message, reference_metrics, source_offsets, validate_request)
 from ecommerce_streaming.kafka_io import replay_records, send_confirmed
@@ -28,6 +29,7 @@ def event(index=0, minute=0, **updates):
 def config():
     return {"run_id": "demo-001", "dataset_version": "a" * 64, "code_sha256": "b" * 64,
             "pipeline_version": PIPELINE_VERSION, "start": DEFAULT_START, "end": DEFAULT_END,
+            "behavior_version": BEHAVIOR_VERSION,
             "rate": 10, "event_count": 2, "topic": "ecommerce.events.raw"}
 
 
@@ -86,7 +88,8 @@ class StreamingContractTests(unittest.TestCase):
     def test_run_requests_reject_path_escape_rate_and_range_errors(self):
         validate_request(config())
         for changes in ({"run_id": "../escape"}, {"rate": float("nan")}, {"rate": float("inf")},
-                        {"rate": 0}, {"rate": 11}, {"end": DEFAULT_START}):
+                        {"rate": 0}, {"rate": 11}, {"end": DEFAULT_START},
+                        {"pipeline_version": "stream-v1"}, {"behavior_version": "unknown"}):
             with self.subTest(changes=changes), self.assertRaises(ValueError):
                 validate_request({**config(), **changes})
 
@@ -207,7 +210,10 @@ class StreamingPackagingTests(unittest.TestCase):
                 self.assertFalse(any(name.startswith("ecommerce_streaming/") for name in archive.namelist()))
             with zipfile.ZipFile(first["archive"]) as archive:
                 self.assertIn("ecommerce_streaming/batch.py", archive.namelist())
+                self.assertIn("ecommerce_behavior/pipeline.py", archive.namelist())
                 self.assertTrue(all(name.endswith(".py") for name in archive.namelist()))
+                for name in archive.namelist():
+                    compile(archive.read(name), name, "exec")
 
 
 if __name__ == "__main__":

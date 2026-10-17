@@ -40,7 +40,7 @@ Tổng cộng **chín service thường trực** và **ba job init**. Trạng th
 - Dataset và mã ứng dụng được mount read-only vào Spark client. Job batch Bronze/Silver, validation, quarantine và quality report đã có trong mã nguồn; xem [tài liệu dữ liệu](../data/README.md). Runtime ingestion vẫn cần nghiệm thu trên cụm thật.
 - Các thư mục Bronze/Silver/Gold được init chuẩn bị; việc tạo thư mục không đồng nghĩa đã có dữ liệu nghiệp vụ.
 - Topic raw và DLQ được dùng bởi [replay/streaming KPI](../streaming/README.md), có validation, loại trùng và cách ly/DLQ. Mã mới vẫn cần nghiệm thu runtime.
-- Smoke test độc lập với ứng dụng; funnel và feature nghiệp vụ chưa được triển khai.
+- Smoke test độc lập với ứng dụng; session/funnel có [kiểm thử riêng](../analytics/04-testing.md), feature ML thuộc giai đoạn sau.
 - Chưa có huấn luyện K-Means/Random Forest, dự đoán online, FastAPI hoặc dashboard sản phẩm.
 - Spark UI và HDFS UI là giao diện quản trị kỹ thuật, không phải dashboard phân tích thương mại điện tử.
 

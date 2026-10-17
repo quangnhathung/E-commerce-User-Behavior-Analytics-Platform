@@ -57,11 +57,11 @@ Khóa file chỉ áp dụng trong cùng workspace. Không chạy Spark thủ cô
 /ecommerce/checkpoints/replay/<run_id>/
 ```
 
-Mỗi root batch có manifest, marker và checksum payload riêng. Staging UUID nằm cùng filesystem; rename không ghi đè. Payload được xác nhận ít nhất hai replica trước công bố và kiểm tra lại khi tái sử dụng. Bronze giữ key/value binary và tọa độ Kafka. Silver `audit` chứa duplicate, invalid, late và foreign cùng raw bytes/mã lỗi. Gold là JSON thống kê có giới hạn, không đọc như Parquet.
+Mỗi root batch có manifest, marker và checksum payload riêng. Staging UUID nằm cùng filesystem; rename không ghi đè. Payload được xác nhận ít nhất hai replica trước công bố và kiểm tra lại khi tái sử dụng. Bronze giữ key/value binary và tọa độ Kafka. Silver `audit` chứa duplicate, invalid, late và foreign cùng raw bytes/mã lỗi. Gold có `metrics.json` KPI và trong `stream-v2` thêm `behavior.json`, `behavior-quality.json`, Parquet `sessions/`, `session_items/`, `funnel_products/`; xem [kiến trúc hành vi](../analytics/02-architecture.md).
 
 Các namespace lịch sử `bronze/retailrocket` và `silver/retailrocket` được giữ nguyên. Package ingest không đổi byte; archive hiện tại vẫn có SHA-256 `ae42a5981bc20e1295df1dabbfab7e553af0f133a39c97fb52fa795ceafcb554`.
 
-MongoDB dùng `stream_runs`, `stream_batches`, `kpi_overview`, `kpi_minute`. Document KPI có ID từ run/batch/cửa sổ; index run/batch hỗ trợ đọc snapshot. Chỉ dùng application account hiện có, không thêm quyền root.
+MongoDB dùng `stream_runs`, `stream_batches`, `kpi_overview`, `kpi_minute`, cùng `funnel_overview`/`funnel_products` cho hành vi. Document có ID từ run/batch/cửa sổ hoặc item; KPI và funnel dùng chung con trỏ batch công bố. Chỉ dùng application account hiện có, không thêm quyền root.
 
 ## 5. RAM và giới hạn
 

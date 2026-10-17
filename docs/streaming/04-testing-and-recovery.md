@@ -4,7 +4,7 @@
 
 ## 1. Kiểm thử offline
 
-`make test` giữ nguyên suite hạ tầng/ingestion và chạy 39 test streaming, gồm 12 test hồi quy Kafka readiness. Chỉ cần Python standard library và công cụ kiểm thử hạ tầng đã có; Kafka/Mongo/PySpark chỉ cần trong container khi chạy tích hợp.
+`make test` giữ nguyên suite hạ tầng/ingestion và chạy 39 test streaming, gồm 12 test hồi quy Kafka readiness, cùng 23 test mới cho [session/funnel và host](../analytics/04-testing.md). Chỉ cần Python standard library và công cụ kiểm thử hạ tầng đã có; Kafka/Mongo/PySpark chỉ cần trong container khi chạy tích hợp.
 
 | Nhóm | Bằng chứng |
 | --- | --- |
@@ -24,16 +24,20 @@ Test Mongo offline dùng adapter trạng thái trong bộ nhớ, không chứng 
 make test-stream
 ```
 
-Suite có tám test, gồm bảy fault scenario trong test retry:
+Suite `stream-v2` có mười test, gồm tám fault scenario trong test retry:
 
 1. KPI chính xác, duplicate giữa batch, malformed JSON, ID conflict và foreign run.
 2. Lateness đúng biên 10 phút; quá biên vào audit/DLQ.
-3. Retry sau Bronze, Silver, Gold, DLQ; lỗi ghi minute, trước pointer và sau pointer MongoDB. Manifest đã commit giữ nguyên, số liệu không cộng lặp.
+3. Retry sau Bronze, Silver, Gold, DLQ; lỗi ghi minute, sản phẩm funnel, trước pointer và sau pointer MongoDB. Manifest đã commit giữ nguyên, số liệu không cộng lặp.
 4. Có Silver nhưng mất checkpoint bị từ chối.
 5. Mất completion marker bị từ chối.
 6. DLQ đã ACK rồi lỗi: retry cho hai message cùng source ID, giữ raw và mã lỗi.
 7. Kafka thật → query lỗi sau MongoDB trước Spark checkpoint → restart cùng checkpoint → tự dừng và đối soát đúng, có hai worker parse.
 8. Prepare đọc Silver đúng schema, sắp nguồn và tạo tham chiếu chính xác; chạy lại giữ nguyên manifest và checksum.
+9. Event đến muộn được chấp nhận đúng biên 10 phút nối hai session qua batch, funnel được tính lại đúng.
+10. Batch chỉ có invalid công bố funnel rỗng; batch hợp lệ sau đó cho KPI/funnel đúng.
+
+Các test đối soát KPI hoàn chỉnh cũng xác minh session/funnel HDFS và MongoDB với tham chiếu Python độc lập. Fixture lịch sử và các biên funnel khác chạy bằng `make test-behavior`.
 
 Fixture gồm sáu event: ba view, một add to cart và hai purchase cùng transaction. Có ba visitor, một buyer, một transaction; active visitors cuối là hai. Tham chiếu Python độc lập được so với aggregate Spark.
 
@@ -41,11 +45,13 @@ Mọi topic có prefix `app-stream-test-<UUID>`/`app-stream-dlq-<UUID>`. HDFS ch
 
 Sau khi Future tạo topic thành công, suite đợi raw có ba partition và DLQ có một partition, mỗi partition có leader và đọc được watermark. Việc tạo topic thành công chưa đảm bảo metadata đã sẵn sàng ngay cho client khác; Kafka ghi rõ có thể có độ trễ sau thao tác này. [Tài liệu CreateTopics](https://kafka.apache.org/39/javadoc/org/apache/kafka/clients/admin/Admin.html)
 
-Trong test phục hồi checkpoint, traceback `RuntimeError: injected before Spark checkpoint commit` và Spark `ERROR MicroBatchExecution` là lỗi có chủ đích. Test phải khởi động lại cùng checkpoint, kiểm tra kết quả rồi kết thúc bằng `ok`. Dùng tổng kết cuối `Ran 8 tests` và `OK`, cùng kết quả cleanup/resource monitor của lệnh, để đánh giá toàn bộ suite. Cảnh báo idempotence `Coordinator load inprogress: retrying` trong log đã tự phục hồi, không phải lỗi làm lượt chạy được cung cấp thất bại.
+Trong test phục hồi checkpoint, traceback `RuntimeError: injected before Spark checkpoint commit` và Spark `ERROR MicroBatchExecution` là lỗi có chủ đích. Test phải khởi động lại cùng checkpoint, kiểm tra kết quả rồi kết thúc bằng `ok`. Dùng tổng kết cuối `Ran 10 tests` và `OK`, cùng kết quả cleanup/resource monitor của lệnh, để đánh giá toàn bộ suite hiện tại. Log cũ có `Ran 8 tests` thuộc phiên bản trước khi thêm hành vi. Cảnh báo idempotence `Coordinator load inprogress: retrying` trong log đã tự phục hồi, không phải lỗi làm lượt chạy được cung cấp thất bại.
 
 ## 3. Nghiệm thu dữ liệu thật
 
 Nguồn mặc định phải có 2.692 event: view 2.596, cart 69, purchase 27, transaction 19, visitor 1.860, buyer 17. Invalid và late phải bằng 0. Đối soát không chỉ số lượng: fingerprint toàn bộ `(event_id, business_sha256)` và KPI từng phút phải trùng nguồn đã chuẩn bị.
+
+Session/funnel mặc định phải có 1.893 phiên, với 1.882 phiên xem, 35 phiên đạt giỏ và 9 phiên hoàn thành chuỗi mua; đối soát fingerprint toàn bộ sản phẩm. Xem [hợp đồng và nghiệm thu](../analytics/04-testing.md).
 
 Sau một lượt hoàn chỉnh, chạy thêm lượt mới với RUN_ID khác, ngắt streaming trong khi producer còn phát, khởi động lại cùng RUN_ID/checkpoint rồi xác nhận kết quả cuối. Khi ngắt producer, tiếp tục cùng RUN_ID; sự kiện chưa chắc chắn có thể được phát lại nhưng tổng KPI không tăng sai.
 
@@ -85,17 +91,18 @@ make test
 make test-stream
 ```
 
-Không cần build lại image, khởi tạo lại hạ tầng hoặc xóa volume vì `/opt/app` dùng bind mount mã nguồn. `test-stream` tự tạo UUID mới mỗi lượt. Nghiệm thu bản sửa bằng ba lượt liên tiếp: mỗi lượt đủ tám test đạt, cleanup thành công và monitor không phát hiện OOM/restart. Nếu kiểm thử thất bại, giữ log trong `artifacts/streaming/tests/logs/` và kiểm tra nguyên nhân trước khi thử lại.
+Không cần build lại image, khởi tạo lại hạ tầng hoặc xóa volume vì `/opt/app` dùng bind mount mã nguồn. `test-stream` tự tạo UUID mới mỗi lượt. Nghiệm thu bằng ba lượt liên tiếp: mỗi lượt đủ mười test đạt, cleanup thành công và monitor không phát hiện OOM/restart. Nếu kiểm thử thất bại, giữ log trong `artifacts/streaming/tests/logs/` và kiểm tra nguyên nhân trước khi thử lại.
 
 Bản sửa đổi fingerprint mã streaming: run demo đã chuẩn bị bằng mã cũ cần khôi phục đúng mã để tiếp tục, hoặc chuẩn bị run mới với RUN_ID khác. Archive ingestion và dữ liệu lịch sử giữ nguyên.
 
 ## 5. Trạng thái triển khai
 
 - Test offline streaming đã đạt, SHA archive ingest giữ nguyên.
-- Lượt kiểm tra sau sửa readiness Kafka: 82 test đạt (27 hạ tầng và 55 ứng dụng), 7 test HTTP skipped vì môi trường cấm socket; `make config` đạt. Đối soát nguồn offline trước đó có 345 phút chứa event, `max_event_time=2015-09-10T15:59:53.734Z` và 96 active visitor ở cửa sổ cuối.
+- Lượt kiểm tra sau thêm session/funnel: 105 test đạt (27 hạ tầng và 78 ứng dụng), 7 test HTTP skipped vì môi trường cấm socket; `make config` đạt. Đối soát nguồn offline trước đó có 345 phút chứa event, `max_event_time=2015-09-10T15:59:53.734Z` và 96 active visitor ở cửa sổ cuối.
 - Có artifact runtime cũ chứng minh smoke, chín test ingestion và ingest lần đầu đạt; chưa có bằng chứng ingest reuse lần hai trong phiên công cụ.
 - Log người dùng ngày 17/10/2026: tám test chạy trong 131,866 giây, bảy test đạt, một test DLQ lỗi `NOT_LEADER_FOR_PARTITION` tại `config_for()` → `end_offsets()` trước khi kiểm tra DLQ. Test phục hồi checkpoint có fault injection đã restart và đạt.
-- Đã tái hiện lỗi leader trên mã cũ bằng kiểm thử giả lập; sau sửa cả 12 test Kafka readiness đạt. Lệnh `make test-stream` sau sửa trong phiên công cụ bị chặn tại Docker socket, nên chưa xác minh tám test trên cụm thật hoặc nghiệm thu ba lượt liên tiếp.
-- Kết quả đối soát CSV offline chỉ xác nhận nguồn và contract; không chứng minh Kafka, HDFS/MongoDB KPI, restart hoặc RAM thực tế của streaming.
+- Artifact hiện tại `artifacts/streaming/test-stream.json` xác nhận 10/10 test, tám fault scenario, cleanup, hai replica và cả hai resource flag đạt. `test-behavior.json` có 6/6 test đạt; history và reuse đã xác nhận. Chưa có bằng chứng ba lượt test liên tiếp.
+- `behavior-demo-001` đã thành công: 2.692 event, backlog 0, checkpoint batch 18, p95 37,287 giây/2.627 samples, hai worker/hai replica, funnel final 1.882 → 35 → 9; không OOM/restart, tài nguyên quan sát đầy đủ. Đây là artifact do người dùng chạy và chia sẻ; phiên công cụ vẫn bị từ chối Docker socket.
+- ML batch mới dùng archive riêng, giữ SHA streaming. Xem [bằng chứng hành vi](../analytics/04-testing.md) và [kiểm thử ML](../ml/04-testing.md).
 
 Nguồn kỹ thuật: [Spark foreachBatch và checkpoint](https://spark.apache.org/docs/3.5.7/structured-streaming-programming-guide.html), [Kafka offsets khi restart Spark](https://spark.apache.org/docs/3.5.7/structured-streaming-kafka-integration.html), [MongoDB atomicity](https://www.mongodb.com/docs/manual/core/write-operations-atomicity/).

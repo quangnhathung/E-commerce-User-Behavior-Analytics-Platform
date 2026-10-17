@@ -6,6 +6,8 @@
 
 Cụm phải healthy, có Silver lịch sử và `artifacts/data/latest-ingest.json`. Dùng cùng terminal/workspace có quyền Docker. Nếu chưa nghiệm thu tái sử dụng Silver, chạy `make ingest` lần nữa và xác nhận hai cờ reuse bằng true.
 
+Mã hiện tại dùng `stream-v2` và có session/funnel. Dùng RUN_ID mới sau khi cập nhật; run/checkpoint được chuẩn bị bằng mã cũ cần đúng mã cũ để tiếp tục. Xem [vận hành hành vi](../analytics/03-operations.md).
+
 ```bash
 make doctor
 make test
@@ -74,6 +76,8 @@ artifacts/streaming/
 ```
 
 `report.json` chứa đối soát chức năng, KPI, counts từng loại, worker, offsets, backlog, batch time và p95 latency. `duration_seconds` là thời gian attempt streaming hiện tại; `replay_wall_seconds` và `acknowledged_rate_eps` đo từ lúc producer bắt đầu đến ACK cuối, gồm thời gian ngắt/backpressure. `passed=true` xác nhận tính đúng dữ liệu; nghiệm thu hiệu năng còn cần `performance_target_met=true`, có samples, `no_oom_or_restart=true` và quan sát RAM đầy đủ. Nếu chỉ có một batch, p95 steady-state/target là null vì batch đầu được loại khỏi phép đo; chưa đủ bằng chứng hiệu năng.
+
+Report thêm `behavior` được đối chiếu với oracle Python đã chuẩn bị. `stream-status` có `funnel.overview` và `is_final`; dùng `make behavior-status RUN_ID=... [ITEM_ID=...]` để xem trang sản phẩm của cùng snapshot.
 
 Thời điểm đo latency là sau khi pointer MongoDB đã công bố, so với `emitted_at` của các event accepted trong batch. Khi retry, mẫu phản ánh lần công bố lại. `resources.json` giữ trạng thái container trước/sau và mẫu `docker stats`; mẫu cách khoảng năm giây nên không thể chứng minh peak tuyệt đối.
 

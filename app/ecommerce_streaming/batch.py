@@ -8,6 +8,7 @@ from pyspark import StorageLevel
 from pyspark.sql import functions as F, types as T, Window
 
 from ecommerce_analytics.snapshots import materialize, write_json
+from ecommerce_behavior.pipeline import product_rows, write_behavior
 from .contracts import (MAX_EVENTS, digest, dlq_record, instant, iso,
                         normalize_partition, source_offsets)
 from .kafka_io import send_dlq
@@ -134,9 +135,11 @@ class Processor:
         self.signal("after_silver")
 
         def build_gold(staging):
-            result = metrics(read_events(spark, prior_roots + [silver_root]))
+            events = read_events(spark, prior_roots + [silver_root])
+            result = metrics(events)
             write_json(storage, staging + "/metrics.json", result)
-            return {"processed_events": result["overview"]["processed_events"]}
+            behavior = write_behavior(events, storage, staging, config["run_id"])
+            return {"processed_events": result["overview"]["processed_events"], "behavior": behavior}
 
         gold_identity = {"kind": "stream-gold", **identity, "silver_sha256": storage.sha256(silver_root + "/manifest.json")}
         materialize(storage, gold_root, gold_identity, build_gold)
@@ -152,7 +155,9 @@ class Processor:
         metadata = {**silver["metadata"], "bronze_path": bronze_root, "silver_path": silver_root,
                     "gold_path": gold_root, "publication_at": None, "latency_seconds": [],
                     "batch_seconds": round(time.monotonic() - started, 3)}
-        published = self.store.publish(config, batch_id, gold, metadata, fault=self.fault)
+        behavior = storage.read_json(gold_root + "/behavior.json")
+        published = self.store.publish(config, batch_id, gold, metadata, fault=self.fault,
+                                       behavior=behavior, products=product_rows(spark, gold_root))
         self.store.publication_timing(config, batch_id, published, emitted_times)
         print("STREAM_BATCH=" + json.dumps({"batch_id": batch_id,
               "counts": metadata["counts"], "processed_events": gold["overview"]["processed_events"]}), flush=True)
