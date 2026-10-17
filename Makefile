@@ -3,6 +3,7 @@ export CONFIRM
 export RUN_ID START END RATE ITEM_ID
 export AS_OF FEATURE_SNAPSHOT_ID MODEL_VERSION VISITOR_ID
 export PURCHASE_DATASET_ID SCORE_RUN_ID
+export POLICY_VERSION
 .PHONY: setup build up doctor smoke persistence-test ps logs down reset config test versions ingest test-data prepare-demo stream replay stream-status test-stream analyze-behavior behavior-status test-behavior
 
 setup build up doctor smoke persistence-test ps logs down reset config versions:
@@ -25,3 +26,7 @@ build-features train-segments segment-status test-ml:
 .PHONY: build-purchase-data train-purchase purchase-status score-purchases purchase-score-status test-purchase
 build-purchase-data train-purchase purchase-status score-purchases purchase-score-status test-purchase:
 	@$(PYTHON) app/prediction_manage.py $@
+
+.PHONY: tune-purchase-policy apply-purchase-policy purchase-policy-status test-purchase-policy
+tune-purchase-policy apply-purchase-policy purchase-policy-status test-purchase-policy:
+	@$(PYTHON) app/purchase_policy_manage.py $@
