@@ -46,4 +46,4 @@ Mã ứng dụng đã được mount tại `/opt/app`; không thêm service, vol
 
 ## Trạng thái kiểm chứng
 
-Kiểm thử offline đã đạt, archive ingest giữ nguyên SHA-256. Artifact phiên bản trước xác nhận 8/8 test tích hợp đạt sau sửa Kafka readiness, cleanup thành công và không OOM/restart. Nguồn demo đã đối soát offline. `stream-v2` có mười test và bổ sung hành vi; phiên công cụ bị từ chối Docker socket, nên **chưa xác minh mười test mới hoặc demo session/funnel thật**. Dùng RUN_ID mới với mã mới. Xem [tiêu chí nghiệm thu](04-testing-and-recovery.md) và [nghiệm thu hành vi](../analytics/04-testing.md).
+Artifact hiện tại xác nhận 10/10 test streaming đạt, tám fault scenario, cleanup/monitor thành công. Run `behavior-demo-001` đã đạt với 2.692 event, backlog 0, p95 37,287 giây, hai worker/hai replica và funnel final. ML batch dùng archive riêng, giữ SHA streaming hiện tại. Dùng RUN_ID mới để chuẩn bị demo khác. Xem [tiêu chí nghiệm thu](04-testing-and-recovery.md) và [bằng chứng hành vi](../analytics/04-testing.md).

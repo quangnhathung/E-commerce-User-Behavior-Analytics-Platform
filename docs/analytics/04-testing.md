@@ -44,7 +44,7 @@ Traceback `injected ...` trong fault test là chủ đích; đánh giá tổng k
 
 Tổng các bước theo sản phẩm lần lượt là 2.354, 43, 10; khác tổng quan vì một phiên có thể tương tác nhiều sản phẩm. KPI cũ vẫn phải có 19 transaction, 1.860 visitor, 17 buyer. Không đánh đồng 9 phiên hoàn thành funnel với 27 purchase event hoặc 19 giao dịch.
 
-Đây là kỳ vọng **offline**, chưa phải kết quả Spark runtime. Prepare tạo reference cùng scope ID từ nguồn JSONL của từng run; final report phải đối chiếu summary và fingerprint sản phẩm, không chỉ các số trong bảng.
+Các số tham chiếu offline này đã được run `behavior-demo-001` xác nhận bằng Spark runtime. Prepare tạo reference cùng scope ID từ nguồn JSONL; final report đối chiếu cả summary và fingerprint sản phẩm.
 
 ## 4. Nghiệm thu lịch sử và phục hồi
 
@@ -56,7 +56,8 @@ Giữ bằng chứng hai worker của streaming, hai replica payload, không OOM
 
 ## 5. Trạng thái thật
 
-- Đã đạt offline, Compose và parse; chưa đổi cấu hình RAM hoặc dependency.
-- Artifact hiện có: tám test streaming phiên bản trước đạt, cleanup thành công, quan sát tài nguyên đầy đủ và không OOM/restart.
-- Đã thử `make test-behavior` sau triển khai; lệnh bị từ chối Docker socket trước khi chạy job. Host không có PySpark; chưa chạy được sáu test behavior, mười test streaming mới, batch lịch sử thật hay demo mới trong phiên công cụ.
-- Không ghi report runtime thành công giả hoặc thay báo cáo cũ. Chạy các lệnh nghiệm thu trên terminal có quyền Docker và kiểm tra fingerprint của mã hiện tại.
+- `artifacts/analytics/test-behavior.json`: 6/6 đạt, cleaned, hai replica, cả hai resource flag true.
+- `artifacts/streaming/test-stream.json`: 10/10 đạt, tám fault scenario, cleanup và monitor đạt.
+- History `f24f8bc4f1363134cb4c8a894e217d20c272a780b00784473fd8742dcf327be7`: 2.755.641 event, 1.761.675 session, 235.061 sản phẩm, funnel 1.755.781 → 34.042 → 10.399. Lần đầu 137,407 giây; lần hai 45,407 giây, reused và manifest/summary giống nhau. Product fingerprint `59ae504d1b3850e1129fc99ae09d5fa8f71f1e1c5cab189920f6f8aa15c2e7ce`.
+- `artifacts/streaming/behavior-demo-001/report.json`: passed, 2.692 event, 1.893 session, 2.155 sản phẩm, funnel 1.882 → 35 → 9; backlog 0, checkpoint batch 18, hai worker/hai replica, p95 37,287 giây với 2.627 samples; resources đầy đủ và không OOM/restart.
+- Artifact do người dùng chạy trên terminal có Docker. Phiên công cụ vẫn bị từ chối socket, nhưng đọc được artifact chia sẻ để kiểm tra. ML mới giữ nguyên hai archive cũ; nghiệm thu riêng tại `docs/ml/04-testing.md`.

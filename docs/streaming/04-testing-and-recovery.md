@@ -101,8 +101,8 @@ Bản sửa đổi fingerprint mã streaming: run demo đã chuẩn bị bằng 
 - Lượt kiểm tra sau thêm session/funnel: 105 test đạt (27 hạ tầng và 78 ứng dụng), 7 test HTTP skipped vì môi trường cấm socket; `make config` đạt. Đối soát nguồn offline trước đó có 345 phút chứa event, `max_event_time=2015-09-10T15:59:53.734Z` và 96 active visitor ở cửa sổ cuối.
 - Có artifact runtime cũ chứng minh smoke, chín test ingestion và ingest lần đầu đạt; chưa có bằng chứng ingest reuse lần hai trong phiên công cụ.
 - Log người dùng ngày 17/10/2026: tám test chạy trong 131,866 giây, bảy test đạt, một test DLQ lỗi `NOT_LEADER_FOR_PARTITION` tại `config_for()` → `end_offsets()` trước khi kiểm tra DLQ. Test phục hồi checkpoint có fault injection đã restart và đạt.
-- Artifact sau sửa Kafka xác nhận tám test streaming phiên bản trước đạt, cleanup thành công, quan sát RAM đầy đủ và không OOM/restart; fault checkpoint đã phục hồi. Phiên bản mới có mười test cần chạy lại.
-- Đã thử `make test-behavior` sau triển khai; Docker socket bị từ chối trước khi chạy Spark. Chưa nghiệm thu session/funnel batch/streaming mới hoặc ba lượt test liên tiếp trong phiên công cụ.
-- Kết quả đối soát CSV offline chỉ xác nhận nguồn và contract; không chứng minh Kafka, HDFS/MongoDB KPI, restart hoặc RAM thực tế của streaming.
+- Artifact hiện tại `artifacts/streaming/test-stream.json` xác nhận 10/10 test, tám fault scenario, cleanup, hai replica và cả hai resource flag đạt. `test-behavior.json` có 6/6 test đạt; history và reuse đã xác nhận. Chưa có bằng chứng ba lượt test liên tiếp.
+- `behavior-demo-001` đã thành công: 2.692 event, backlog 0, checkpoint batch 18, p95 37,287 giây/2.627 samples, hai worker/hai replica, funnel final 1.882 → 35 → 9; không OOM/restart, tài nguyên quan sát đầy đủ. Đây là artifact do người dùng chạy và chia sẻ; phiên công cụ vẫn bị từ chối Docker socket.
+- ML batch mới dùng archive riêng, giữ SHA streaming. Xem [bằng chứng hành vi](../analytics/04-testing.md) và [kiểm thử ML](../ml/04-testing.md).
 
 Nguồn kỹ thuật: [Spark foreachBatch và checkpoint](https://spark.apache.org/docs/3.5.7/structured-streaming-programming-guide.html), [Kafka offsets khi restart Spark](https://spark.apache.org/docs/3.5.7/structured-streaming-kafka-integration.html), [MongoDB atomicity](https://www.mongodb.com/docs/manual/core/write-operations-atomicity/).

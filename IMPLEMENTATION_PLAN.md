@@ -1,6 +1,6 @@
 # Kế hoạch triển khai E-commerce User Behavior Analytics Platform trong 7 ngày
 
-> Cập nhật triển khai 17/10/2026: đã có hạ tầng, ingestion, replay/KPI và mã session/funnel lịch sử lẫn streaming. Cấu hình thực tế đã giảm xuống khoảng **7 GiB**, thay cho ngân sách 10 GB dự kiến trong kế hoạch ban đầu dưới đây. Kiểm thử offline đạt; session/funnel mới còn chờ nghiệm thu trên Docker thật. Xem [tài liệu hiện hành](docs/README.md) và [nghiệm thu hành vi](docs/analytics/04-testing.md). Các mốc ngày và hiện trạng ban đầu bên dưới là lộ trình gốc, không phải báo cáo đã hoàn thành.
+> Cập nhật triển khai 17/10/2026: hạ tầng, ingestion, replay/KPI và session/funnel đã có artifact nghiệm thu thật: 6 test behavior, 10 test streaming, history/reuse và demo. Đã triển khai **feature 7 ngày + K-Means lịch sử**, chưa có runtime ML vì phiên công cụ bị từ chối Docker socket; Random Forest/scoring streaming/API/dashboard để sau. Ngân sách thực tế khoảng **7 GiB**. Offline hiện có 131 test đạt, 7 HTTP skipped. Xem [tài liệu hiện hành](docs/README.md), [nghiệm thu hành vi](docs/analytics/04-testing.md) và [ML](docs/ml/README.md). Các mốc ngày và hiện trạng ban đầu bên dưới là lộ trình gốc, không phải báo cáo hoàn thành.
 
 ## 1. Mục tiêu, hiện trạng và phạm vi đã chốt
 
@@ -537,8 +537,10 @@ Backlog được tính từ **Kafka end offsets trừ offsets của batch đã h
 | `make up`           | Khởi động hạ tầng                  |
 | `make doctor`       | Kiểm tra dịch vụ và dependency     |
 | `make ingest`       | Tạo Bronze/Silver lịch sử          |
-| `make features`     | Tạo dữ liệu huấn luyện             |
-| `make train`        | Huấn luyện và đánh giá             |
+| `make build-features` | Feature 7 ngày lịch sử            |
+| `make train-segments` | K-Means và đánh giá silhouette     |
+| `make segment-status` | Đọc model/profile hoặc một visitor |
+| `make test-ml`      | Kiểm thử ML trên cụm thật           |
 | `make prepare-demo` | Chuẩn bị lịch sử và dữ liệu replay |
 | `make stream`       | Chạy xử lý và scoring              |
 | `make replay`       | Phát dữ liệu demo                  |

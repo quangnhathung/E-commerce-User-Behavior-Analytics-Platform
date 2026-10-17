@@ -29,6 +29,6 @@ Streaming mới dùng `stream-v2`, hợp đồng hành vi `behavior-v1`. Chuẩn
 
 ## Trạng thái
 
-Đã triển khai bộ tính Spark, bộ tham chiếu Python, snapshot lịch sử, tích hợp streaming, công bố MongoDB và CLI. Kiểm thử offline có 105 test đạt, 7 HTTP skipped; `make config` đạt và SHA archive ingestion giữ nguyên. Phiên công cụ bị từ chối Docker socket khi chạy `make test-behavior`, nên **chưa nghiệm thu Spark/HDFS/MongoDB của phần hành vi trên cụm thật**.
+Đã có artifact thật xác nhận 6/6 test behavior, 10/10 test streaming, cleanup và monitor đạt. Phân tích lịch sử có 2.755.641 event, 1.761.675 session và 235.061 sản phẩm; lần hai reuse cùng manifest. `behavior-demo-001` có 2.692 event, 1.893 session, funnel 1.882 → 35 → 9, backlog 0, p95 37,287 giây, hai worker và hai replica.
 
-Report `test-stream` tám test đã đạt thuộc phiên bản trước khi thêm hành vi. Phiên bản hiện tại có mười test streaming và sáu test hành vi cần chạy lại; không dùng report cũ làm bằng chứng cho mã mới.
+Giai đoạn kế tiếp đã có mã [feature 7 ngày và K-Means lịch sử](../ml/README.md), dùng archive riêng để giữ nguyên SHA streaming đã nghiệm thu. Offline toàn dự án hiện có 131 test đạt, 7 HTTP skipped; runtime ML còn chờ terminal có quyền Docker. Xem bằng chứng chi tiết trong [kiểm thử hành vi](04-testing.md).
