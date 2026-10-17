@@ -4,7 +4,7 @@
 
 Bộ tài liệu này giải thích phần hạ tầng Docker đã được xây dựng cho **E-commerce User Behavior Analytics Platform**: từng thành phần làm gì, vì sao cần có, phối hợp như thế nào và cách vận hành.
 
-Đọc [kế hoạch sản phẩm](../../IMPLEMENTATION_PLAN.md) để xem mục tiêu đồ án tổng thể. Các giá trị và hành vi của bản triển khai hiện tại được xác định bởi [Compose](../../compose.yaml), [template môi trường](../../.env.example) và [mã nguồn hạ tầng](../../infra/), thay vì các lựa chọn dự kiến trong kế hoạch.
+Developer mới dùng [runbook từ khởi tạo đến policy precision](../GETTING_STARTED.md), gồm Linux và Windows/WSL2. Đọc [kế hoạch sản phẩm](../../IMPLEMENTATION_PLAN.md) để xem mục tiêu đồ án tổng thể. Các giá trị và hành vi của bản triển khai hiện tại được xác định bởi [Compose](../../compose.yaml), [template môi trường](../../.env.example) và [mã nguồn hạ tầng](../../infra/), thay vì các lựa chọn dự kiến trong kế hoạch.
 
 ## Thứ tự đọc
 
@@ -37,26 +37,26 @@ Tổng cộng **chín service thường trực** và **ba job init**. Trạng th
 
 ## Ứng dụng trên hạ tầng và phần còn lại
 
-- Dataset và mã ứng dụng được mount read-only vào Spark client. Job batch Bronze/Silver, validation, quarantine và quality report đã có trong mã nguồn; xem [tài liệu dữ liệu](../data/README.md). Runtime ingestion vẫn cần nghiệm thu trên cụm thật.
+- Dataset và mã ứng dụng được mount read-only vào Spark client. Job batch Bronze/Silver, validation, quarantine và quality report đã có artifact runtime xác nhận; xem [tài liệu dữ liệu](../data/README.md).
 - Các thư mục Bronze/Silver/Gold được init chuẩn bị; việc tạo thư mục không đồng nghĩa đã có dữ liệu nghiệp vụ.
-- Topic raw và DLQ được dùng bởi [replay/streaming KPI](../streaming/README.md), có validation, loại trùng và cách ly/DLQ. Mã mới vẫn cần nghiệm thu runtime.
-- Smoke test độc lập với ứng dụng; session/funnel có [kiểm thử riêng](../analytics/04-testing.md), feature ML thuộc giai đoạn sau.
-- Chưa có huấn luyện K-Means/Random Forest, dự đoán online, FastAPI hoặc dashboard sản phẩm.
+- Topic raw và DLQ được dùng bởi [replay/streaming KPI](../streaming/README.md), có validation, loại trùng và cách ly/DLQ; live suite và demo đã có artifact xác nhận.
+- Smoke test độc lập với ứng dụng; session/funnel có [kiểm thử riêng](../analytics/04-testing.md), feature/K-Means/RF và policy có [tài liệu ML](../ml/README.md).
+- Đã có huấn luyện K-Means/Random Forest và batch score/policy; scoring ML streaming, FastAPI và dashboard sản phẩm thuộc các giai đoạn tiếp theo.
 - Spark UI và HDFS UI là giao diện quản trị kỹ thuật, không phải dashboard phân tích thương mại điện tử.
 
 ## Trạng thái kiểm chứng
 
-Tại thời điểm biên soạn ngày **16/10/2026**:
+Đối chiếu artifact đến **17/10/2026**; đây là bằng chứng lượt chạy trên máy bàn giao, không thay thế kiểm tra máy mới:
 
 | Hạng mục                           | Bằng chứng/trạng thái                                             |
 | ---------------------------------- | ----------------------------------------------------------------- |
 | Kiểm tra cấu hình Compose          | Đã đạt trong phiên triển khai                                     |
 | Kiểm thử offline hạ tầng           | 27 kiểm tra đã đạt; 7 test HTTP skipped vì môi trường cấm socket                         |
 | Cú pháp Python và Bash             | Đã kiểm tra                                                       |
-| Build image                        | Chưa xác minh thành công; bị chặn tại bước truy cập Docker daemon |
+| Build image                        | Có versions manifest và artifact runtime của cụm đã build |
 | Smoke trên cụm thật | Artifact smoke hiện có xác nhận sáu event, hai worker, checkpoint và Mongo upsert |
 | Persistence trên cụm thật | Chưa có kết quả chạy xác nhận |
-| Artifact runtime | Có `artifacts/infra/smoke.json`, `artifacts/data/test-data.json` và ingest lần đầu; streaming mới chưa có report |
+| Artifact runtime | Có smoke, test-data/ingest, streaming, behavior, K-Means, RF và policy; trạng thái reuse từng phần ở runbook/ML |
 
 Mô tả “kết quả mong đợi” trong các tài liệu là tiêu chí để đối chiếu khi thực thi. JSON minh họa không phải bằng chứng hệ thống đã chạy thành công.
 

@@ -8,7 +8,7 @@ Ngày 17/10/2026: RF gốc có 31 test offline và bảy test tích hợp Spark/
 
 Đã đối chiếu artifact runtime người dùng tạo: **7/7 live test RF đạt, sáu fault scenario, cleanup thành công**; build đủ 128 ngày/20 chặng, số mẫu/positive từng ngày và split khớp CSV; sample 36.750 dòng có 1.750 positive. RF chọn 50 cây/depth 5, threshold 0,93. Test có PR-AUC 0,181722, ROC-AUC 0,915084, precision 43,63%, recall 21,21%, F1 0,28545 (TP=154, FP=199, FN=572, TN=2.379.625). Model/status và score/status đều published; batch ngày 18/09 có 69.052 visitor, 10 người vượt ngưỡng.
 
-Monitor của 30 Spark child có đủ chín container, hai worker, không OOM/restart; tổng limit 6,25 GiB, tổng RAM quan sát lớn nhất 3,6563 GiB. Các liên kết identity/manifest, payload JSON hash và fingerprint tổng hợp trong report/log khớp. Kiểm tra này dựa trên artifact đã lưu, không phải truy vấn mới HDFS/Mongo: Docker socket của phiên công cụ vẫn bị từ chối. **Full-source build/train/score reuse RF chưa có bằng chứng**; policy mới cũng chưa chạy live.
+Monitor của 30 Spark child có đủ chín container, hai worker, không OOM/restart; tổng limit 6,25 GiB, tổng RAM quan sát lớn nhất 3,6563 GiB. Các liên kết identity/manifest, payload JSON hash và fingerprint tổng hợp trong report/log khớp. Kiểm tra này dựa trên artifact đã lưu, không phải truy vấn mới HDFS/Mongo: Docker socket của phiên công cụ vẫn bị từ chối. **Full-source build/train/score reuse RF chưa có bằng chứng**. Policy riêng đã có artifact 5/5 live test, đánh giá toàn nguồn và apply/reuse đạt; xem [bằng chứng policy](09-purchase-policy.md).
 
 K-Means đã được nghiệm thu bằng artifact người dùng tạo, gồm full-source reuse; xem [kiểm thử K-Means](04-testing.md). Bằng chứng đó xác nhận pipeline trước, không thay thế kiểm thử RF.
 

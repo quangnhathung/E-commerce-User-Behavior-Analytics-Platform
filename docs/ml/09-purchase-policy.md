@@ -12,7 +12,7 @@ Người dùng chọn mục tiêu **precision ≥70%, recall ≥10%**. Ngưỡng
 | 0,95 | 59,79% | 15,91% | 116/194 |
 | 0,96 | 79,65% | 12,35% | 90/113 |
 
-Đây là số từ **validation đã lưu**, không phải kết quả test của policy mới. Test RF gốc tại 0,93 có precision 43,63%, recall 21,21%, TP=154, FP=199. Mã policy mới chưa chạy được trên cụm trong phiên công cụ vì Docker socket bị từ chối; chưa có số test thật tại 0,96 hoặc số visitor vượt ngưỡng mới để công bố.
+Bảng trên là số từ **validation đã lưu**. Artifact runtime người dùng tạo ngày 17/10/2026 đã xác nhận policy chọn 0,96, `eligible=true`; **test precision 73,88%, recall 13,64%**, TP=99, FP=35, FN=627, TN=2.379.789. Test RF gốc tại 0,93 có precision 43,63%, recall 21,21%, TP=154, FP=199. Apply giữ đủ 69.052 visitor và có bốn predicted positive, so với 10 của score gốc. Nhãn batch này không có ground truth tương lai đầy đủ để suy ra precision trên cohort score.
 
 `purchase_score` là điểm RF chưa hiệu chuẩn sau negative sampling. Điểm 0,96 không có nghĩa xác suất mua 96%. Thay threshold chỉ đổi `predicted_label`, không làm PR-AUC/ROC-AUC hoặc thứ tự xếp hạng tốt lên.
 
@@ -20,7 +20,7 @@ Người dùng chọn mục tiêu **precision ≥70%, recall ≥10%**. Ngưỡng
 
 1. Đọc model `published`, kiểm tra identity/Spark version, model/index/winning-candidate manifest, metadata và hai replica HDFS. Đọc đúng validation predictions của candidate thắng; không dựng feature hoặc fit lại.
 2. Đối chiếu fingerprint validation với RF gốc, tính lại đủ 101 ngưỡng `0.00..1.00` và so với bảng đã lưu. Mỗi ngưỡng phải có confusion/count hợp lệ, cùng cohort và số dự đoán giảm theo ngưỡng.
-3. Chọn trong các ngưỡng có precision ≥0,70, recall ≥0,10 và ít nhất một dự đoán mua. Ưu tiên recall cao nhất; hòa thì precision cao hơn, rồi ngưỡng cao hơn. Với validation hiện có, kết quả dự kiến là **0,96**; không hardcode ngưỡng này.
+3. Chọn trong các ngưỡng có precision ≥0,70, recall ≥0,10 và ít nhất một dự đoán mua. Ưu tiên recall cao nhất; hòa thì precision cao hơn, rồi ngưỡng cao hơn. Với artifact nguồn hiện có, kết quả đã xác nhận là **0,96**; không hardcode ngưỡng này cho lần chạy khác.
 4. Commit snapshot selection trước khi truy cập test payload. Không có ngưỡng đạt thì lưu lý do, `threshold=null`, `test_skipped=true`, `eligible=false`; không đọc test để tìm ngưỡng thay thế.
 5. Nếu validation đạt, kiểm tra original test evaluation/prediction, fingerprint và nhãn gốc; đánh giá đúng một ngưỡng đã khóa. Chỉ `eligible=true` khi **cả validation và test** đạt mục tiêu. Test không đạt thì giữ ngưỡng đã chọn, ghi `test_targets_not_met`, chặn apply; không dò lại test để chọn ngưỡng khác.
 6. Apply chỉ nhận original score run của cùng model, policy hợp lệ và đúng policy code/Spark version. Kiểm tra nguồn, đổi label bằng `purchase_score >= threshold`, giữ nguyên audit/tám raw feature/score và đủ mọi visitor. Không lọc bỏ visitor dưới ngưỡng.
@@ -124,4 +124,4 @@ Suite kiểm tra qualification, test fail/no feasible, apply/reuse, raw score gi
 
 Nghiệm thu thực tế cần: live suite `passed=true, cleaned=true`, policy test đạt hai mục tiêu hoặc báo rõ không đạt; apply đủ 69.052 visitor cho cutoff mặc định, score-only fingerprint không đổi, label đúng threshold, Mongo published/count khớp; lần hai `reused=true`, không duplicate, resource đủ quan sát/không OOM/restart. Nếu policy test fail thì dừng apply và giữ score gốc.
 
-Hiện tại 26 offline test mới đã đạt; `make test-purchase-policy` đã thử nhưng bị chặn tại preflight Docker socket. **Policy mới chưa có runtime acceptance**, không coi số validation 79,65% là precision test đã đạt.
+Hiện tại 26 offline test mới đã đạt; artifact người dùng tạo xác nhận **5/5 live test, sáu fault scenario, `cleaned=true`, hai replica và hai resource flag đạt**. Policy toàn nguồn chọn 0,96, đạt cả hai mục tiêu validation/test; policy và score status đều published. Apply lần hai có `reused=true`, cùng manifest/fingerprint, không duplicate hoặc OOM/restart; pointer score gốc giữ nguyên. Lượt tune toàn nguồn hiện có `reused=false`, nên chưa đánh dấu full-source tune reuse đã được nghiệm thu. Các kết luận runtime dựa trên report/log/resources đã lưu, không phải truy vấn mới Docker/HDFS/Mongo trong phiên công cụ bị giới hạn socket. Người nhận chạy và đối chiếu theo [hướng dẫn máy mới](../GETTING_STARTED.md#policy).

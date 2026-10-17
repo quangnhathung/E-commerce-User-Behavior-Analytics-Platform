@@ -2,6 +2,8 @@
 
 Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Mã hiện tại gồm hạ tầng Docker, ingestion Retailrocket CSV → Bronze → Silver, replay Kafka, streaming KPI, session/funnel, feature 7 ngày/K-Means và Random Forest dự đoán mua hàng theo batch. Scoring streaming, API và dashboard thuộc các giai đoạn tiếp theo.
 
+**Developer mới:** dùng [hướng dẫn chạy từ đầu đến policy precision](docs/GETTING_STARTED.md), gồm Ubuntu/Arch, Windows qua WSL2, dataset, cấu hình, từng lệnh, tiêu chí đạt và phục hồi.
+
 Kế hoạch sản phẩm đầy đủ: [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
 
 Mục lục tài liệu: [docs/README.md](docs/README.md). Hướng dẫn hạ tầng: [docs/infra/README.md](docs/infra/README.md). Ingestion: [docs/data/README.md](docs/data/README.md). Replay/KPI: [docs/streaming/README.md](docs/streaming/README.md). Session/funnel: [docs/analytics/README.md](docs/analytics/README.md).
@@ -144,7 +146,7 @@ make tune-purchase-policy
 make purchase-policy-status
 ```
 
-Chỉ khi `eligible=true`, chạy `make apply-purchase-policy`; lệnh in ID mới để dùng với `purchase-score-status SCORE_RUN_ID=...`. Không cần build dataset, fit RF hoặc build image lại. Policy có 26 offline test mới đạt; live suite/policy nguồn thật chưa chạy được vì phiên công cụ bị từ chối Docker socket. Validation cũ gợi ý ngưỡng 0,96, chưa bảo đảm test đạt mục tiêu mới.
+Chỉ khi `eligible=true`, chạy `make apply-purchase-policy`; lệnh in ID mới để dùng với `purchase-score-status SCORE_RUN_ID=...`. Không cần build dataset, fit RF hoặc build image lại. Artifact người dùng tạo đã xác nhận 5/5 live test policy, sáu fault scenario, cleanup/monitor đạt; ngưỡng 0,96 có precision test 73,88%, recall 13,64%, `eligible=true`. Apply đủ 69.052 visitor, bốn predicted positive; lần hai `reused=true`, cùng fingerprint, không duplicate. Đây là đánh giá lại ngưỡng trên test đã từng được xem, không phải fresh holdout. Máy mới phải kiểm tra report/eligibility riêng; xem [runbook](docs/GETTING_STARTED.md#policy).
 
 ## Dịch vụ và phiên bản
 
