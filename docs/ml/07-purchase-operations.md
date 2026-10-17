@@ -107,7 +107,7 @@ Nếu global driver guard báo việc cancel chưa xác nhận, kiểm tra drive
 
 Giữ hai worker, mỗi worker một core/executor heap 640 MiB; driver 512 MiB, `maxResultSize=128m`, shuffle/default parallelism 4, UTC. Tổng limit chín service 6,25 GiB; tối đa cộng ba init là 6,94 GiB. Chỉ một Spark driver; producer replay có khóa riêng nhưng không nên mở thêm tải trong nghiệm thu batch.
 
-Nguồn, feature và prediction lớn dùng `DISK_ONLY` ở các chặng cần tái sử dụng; không `collect` hàng triệu dòng. Fingerprint validation/test được đọc tuần tự theo ngày; Mongo gửi từng 100 document. Các task Spark vẫn cần scratch disk và HDFS cần hai replica: **10,1 triệu sample và prediction của bốn candidate làm tăng dung lượng đáng kể**, dù không thêm image. Kiểm tra dung lượng trước và sau khi build; chưa có số đo dung lượng/RAM/thời gian RF thực tế trong phiên này.
+Nguồn, feature và prediction lớn dùng `DISK_ONLY` ở các chặng cần tái sử dụng; không `collect` hàng triệu dòng. Fingerprint validation/test được đọc tuần tự theo ngày; Mongo gửi từng 100 document. Các task Spark vẫn cần scratch disk và HDFS cần hai replica: **10,1 triệu sample và prediction của bốn candidate làm tăng dung lượng đáng kể**, dù không thêm image. Kiểm tra dung lượng trước và sau khi build. Artifact lần đầu ghi tổng RAM quan sát lớn nhất 3,6563 GiB; xem [bằng chứng runtime](08-purchase-testing.md). Thời gian riêng `duration_seconds` trong final report chỉ tính child cuối, không phải toàn chuỗi build/train.
 
 Timeout **1.800 giây cho mỗi child**, không phải cho cả 20 chặng hoặc cả public command. Không chạy candidate song song hoặc tăng RAM để vượt ngân sách đã chốt. Nếu timeout/OOM, xem child log/resources, xác định chặng và tối ưu trong ngân sách rồi chạy lại.
 

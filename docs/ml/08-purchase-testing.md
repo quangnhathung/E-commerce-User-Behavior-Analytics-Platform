@@ -4,9 +4,11 @@
 
 ## Bằng chứng hiện có
 
-Ngày 17/10/2026: đã triển khai mã, CLI, 31 test offline mới và bảy test tích hợp Spark/HDFS/Mongo. `make test` có 34 test hạ tầng + 135 test ứng dụng: **162 đạt, 7 HTTP skipped** do môi trường cấm tạo socket loopback. `make config` đạt. Ba archive ingestion/streaming/ML cũ giữ nguyên hash.
+Ngày 17/10/2026: RF gốc có 31 test offline và bảy test tích hợp Spark/HDFS/Mongo. Sau khi thêm [policy precision](09-purchase-policy.md), `make test` có 34 test hạ tầng + 161 test ứng dụng: **188 đạt, 7 HTTP skipped** do môi trường cấm tạo socket loopback. `make config` đạt. Bốn archive ingestion/streaming/ML/prediction giữ nguyên hash.
 
-Đã thử `make test-purchase` trong phiên công cụ; preflight dừng vì không có quyền truy cập `/var/run/docker.sock`, trước khi chạy Spark. Vì vậy **chưa nghiệm thu bảy live test, build 128 ngày, bốn RF, metrics test và batch score nguồn thật**. Không có số accuracy, PR-AUC, winner, threshold, dung lượng hoặc RAM/thời gian RF thực tế để báo cáo. Các số cohort/positive trong [hợp đồng dữ liệu](05-purchase-data.md) là tham chiếu CSV độc lập, không phải artifact Spark thành công.
+Đã đối chiếu artifact runtime người dùng tạo: **7/7 live test RF đạt, sáu fault scenario, cleanup thành công**; build đủ 128 ngày/20 chặng, số mẫu/positive từng ngày và split khớp CSV; sample 36.750 dòng có 1.750 positive. RF chọn 50 cây/depth 5, threshold 0,93. Test có PR-AUC 0,181722, ROC-AUC 0,915084, precision 43,63%, recall 21,21%, F1 0,28545 (TP=154, FP=199, FN=572, TN=2.379.625). Model/status và score/status đều published; batch ngày 18/09 có 69.052 visitor, 10 người vượt ngưỡng.
+
+Monitor của 30 Spark child có đủ chín container, hai worker, không OOM/restart; tổng limit 6,25 GiB, tổng RAM quan sát lớn nhất 3,6563 GiB. Các liên kết identity/manifest, payload JSON hash và fingerprint tổng hợp trong report/log khớp. Kiểm tra này dựa trên artifact đã lưu, không phải truy vấn mới HDFS/Mongo: Docker socket của phiên công cụ vẫn bị từ chối. **Full-source build/train/score reuse RF chưa có bằng chứng**; policy mới cũng chưa chạy live.
 
 K-Means đã được nghiệm thu bằng artifact người dùng tạo, gồm full-source reuse; xem [kiểm thử K-Means](04-testing.md). Bằng chứng đó xác nhận pipeline trước, không thay thế kiểm thử RF.
 
@@ -93,4 +95,4 @@ Yêu cầu `reused=true`, cùng dataset/model/score ID, cùng manifest/fingerpri
 
 Nếu bị ngắt giữa build, chạy lại phải reuse ngày đã commit, hoàn tất các ngày thiếu rồi mới finalize. Nếu bị ngắt sau Gold/trước Mongo pointer, retry phải dùng Gold và hoàn tất registry đúng count. Nếu published payload/Mongo bị sửa, lệnh phải fail thay vì tự chữa. Khi monitor hoặc một child fail, latest host pointer trước đó phải còn nguyên.
 
-Chỉ đánh dấu phần RF hoàn tất nghiệm thu khi có đủ artifact live suite, full history, score, reuse và resource. Khi chưa chạy được Docker, giữ trạng thái runtime pending như hiện tại.
+RF gốc hiện đã có artifact live suite, full history, score và resource của lần đầu; chỉ đánh dấu hoàn tất nghiệm thu khi có thêm full-source reuse. Policy mới có vòng nghiệm thu riêng, xem [09 — policy precision](09-purchase-policy.md).

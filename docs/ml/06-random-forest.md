@@ -23,6 +23,8 @@ Chọn **PR-AUC validation cao nhất**. Chênh lệch tối đa `1e-12` đượ
 
 Sau đó chọn threshold trên validation bằng lưới cố định `0.00, 0.01, …, 1.00`: ưu tiên F1 cao nhất, tiếp đến precision, rồi threshold cao hơn. Quy tắc dự đoán là `purchase_score >= threshold`. Lưu model được chọn cùng selection/threshold trước khi đọc test. **Không refit trên train + validation** sau khi chọn.
 
+Đây là quy tắc của RF gốc. Khi cần ưu tiên precision ≥70%, recall ≥10%, sử dụng [policy riêng](09-purchase-policy.md) trên các score đã lưu; không sửa threshold/selection của model gốc đã published.
+
 ## Score và các chỉ số
 
 `purchase_score` là phần tử thứ 1 của vector `probability` từ RF, hữu hạn trong `[0,1]`. Negative sampling làm thay đổi phân phối train; điểm này **chưa được hiệu chuẩn theo tỷ lệ mua thực tế**. Dùng để xếp hạng/so ngưỡng, không hiển thị như “xác suất mua X%”. `predicted_label` là integer theo ngưỡng validation, không dùng hard prediction mặc định của RF.

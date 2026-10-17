@@ -9,7 +9,7 @@ make test
 make config
 ```
 
-Bộ toàn dự án hiện có 34 test hạ tầng và 135 test ứng dụng; 162 đạt, 7 HTTP skipped vì môi trường không cho tạo socket loopback. Phần K-Means có 26 test offline: 14 contract/selection/snapshot/package, 6 Mongo boundary và 6 host/launcher. Phần RF bổ sung 31 test, được mô tả [riêng](08-purchase-testing.md). Test offline không cài hoặc import PySpark thực tế; các phép toán Spark được xác nhận bởi bộ live riêng.
+Bộ toàn dự án hiện có 34 test hạ tầng và 161 test ứng dụng; 188 đạt, 7 HTTP skipped vì môi trường không cho tạo socket loopback. Phần K-Means có 26 test offline: 14 contract/selection/snapshot/package, 6 Mongo boundary và 6 host/launcher. Phần RF có 31 test, được mô tả [riêng](08-purchase-testing.md); policy bổ sung [26 test](09-purchase-policy.md). Test offline không cài hoặc import PySpark thực tế; các phép toán Spark được xác nhận bởi bộ live riêng.
 
 Các tình huống đã kiểm tra gồm biên cửa sổ tới millisecond, qua ngày UTC, nguồn không bị sửa, multi-item transaction, distinct nhiều ngày, zero view, ratio >1, input đảo thứ tự, leading zero, giới hạn oracle, timestamp/feature không hợp lệ, canonical fingerprint và tie chọn K. Kiểm tra thứ tự pipeline/log năm count/scaler flags, reuse không gọi build, marker/identity/inventory bị hỏng, archive ML tái lập/compile được và SHA hai archive cũ giữ nguyên.
 
@@ -88,6 +88,6 @@ Ngày 17/10/2026, đã đối chiếu độc lập artifact runtime do người 
 
 Feature ID là `4b3e9d924c88fa6042ae6851871fcd537e5bdda793d3bc2b059df348ecfa89de`; model ID là `8ec975a8e4b74329ff1c68e4c78835a824a3ea3d98990db2e40a5277cc05779d`. Tên “Cụm 0/1” là nhãn mô tả trung tính; silhouette cao không tự chứng minh một chiến lược kinh doanh hiệu quả. `source-audit.json` vẫn giữ `runtime_verified=false` vì nó chỉ là CSV audit; các report Spark và verification mới xác nhận đối soát runtime.
 
-K-Means đã hoàn tất nghiệm thu trong phạm vi này. Random Forest/batch purchase scoring đã triển khai ở giai đoạn tiếp, còn chờ chạy live/full history/reuse; xem [kiểm thử prediction](08-purchase-testing.md).
+K-Means đã hoàn tất nghiệm thu trong phạm vi này. Random Forest/batch purchase scoring đã chạy thành công lần đầu, còn chờ full-source reuse; xem [kiểm thử prediction](08-purchase-testing.md). Policy ưu tiên precision đã có mã và offline test, live policy còn pending.
 
 Phần hành vi trước ML đã có artifact thật: 6/6 behavior tests, 10/10 streaming tests, history/reuse và `behavior-demo-001` thành công. Bằng chứng đó xác nhận nền dữ liệu/streaming; nó không thay thế nghiệm thu pipeline ML mới.

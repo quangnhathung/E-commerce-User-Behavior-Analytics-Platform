@@ -14,6 +14,7 @@ Phần ML chuyển Silver lịch sử thành tám đặc trưng hành vi, phân 
 | [06 — Random Forest](06-random-forest.md) | Bốn candidate, validation/test, threshold, metrics/baselines, HDFS/Mongo và mã nguồn |
 | [07 — Vận hành prediction](07-purchase-operations.md) | Sáu lệnh, batch score/lookup, progress, retry, tài nguyên và xử lý lỗi |
 | [08 — Kiểm thử prediction](08-purchase-testing.md) | Offline/live suite, full history, reuse và trạng thái nghiệm thu |
+| [09 — Chính sách precision](09-purchase-policy.md) | Mục tiêu precision ≥70%/recall ≥10%, ngưỡng riêng, reassessment, apply/reuse và kiểm thử |
 
 Chạy tại thư mục gốc repository, sau khi Silver đã ingest:
 
@@ -40,4 +41,6 @@ make purchase-score-status
 
 Builder RF chạy 20 chặng để tạo 128 daily snapshots; train giữ 1.750 positive và 35.000 negative, validation/test giữ toàn cohort. Score mặc định ngày 18/09/2015 có 69.052 visitor theo tham chiếu CSV. Không cần build lại image, reset volume hoặc thêm service; giữ ngân sách khoảng 7 GiB và một Spark driver mỗi lúc.
 
-Hiện trạng 17/10/2026: **K-Means đã nghiệm thu** từ artifact thật người dùng chạy, gồm 6/6 live test, 99.038 visitor, K=2, silhouette 0,853847 và full-source reuse. **RF đã có mã/CLI/tài liệu và 31 test offline mới; runtime còn pending** vì phiên công cụ bị từ chối Docker socket khi thử `make test-purchase`. Toàn dự án có 162 test đạt, 7 HTTP skipped. Số tham chiếu CSV cho RF không thay thế report Spark; chưa công bố winner/threshold/PR-AUC RF thực tế.
+Hiện trạng 17/10/2026: **K-Means đã nghiệm thu** cả full-source reuse. **RF gốc đã chạy thành công lần đầu**: 7/7 live test, đủ 128 ngày, 50 cây/depth 5/ngưỡng 0,93, PR-AUC test 0,18172 và batch score 69.052 visitor; full-source reuse còn chờ bằng chứng. **Policy ưu tiên precision đã triển khai với 26 offline test mới; runtime policy còn pending** vì phiên công cụ bị từ chối Docker socket. Toàn dự án có 188 test đạt, 7 HTTP skipped. Xem chi tiết trong tài liệu 08 và 09.
+
+Khi muốn thử mục tiêu precision ≥70%/recall ≥10%, dùng [quy trình policy](09-purchase-policy.md): `make test-purchase-policy`, `make tune-purchase-policy`, `make purchase-policy-status`, rồi `make apply-purchase-policy` chỉ khi `eligible=true`. Quy trình dùng scores có sẵn, không build dataset hoặc fit RF lại; score run mới có ID riêng.
