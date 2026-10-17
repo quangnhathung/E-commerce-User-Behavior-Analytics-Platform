@@ -67,6 +67,6 @@ Với dataset version `aef4779c2d9008f4a51f3d12f229c9dbb6718288ea4c380dbbebaa6b2
 | Visitor có transaction | 687 |
 | Recency lớn nhất, giờ | 167,9964286111111 |
 
-Các giá trị này chỉ áp dụng cho nguồn và cửa sổ trên. Tổng transaction theo visitor nói chung có thể khác global distinct transaction; trên cửa sổ hiện tại cả hai cùng bằng 980. Chưa có kết quả Spark feature mới để tuyên bố runtime đã khớp.
+Các giá trị này chỉ áp dụng cho nguồn và cửa sổ trên. Tổng transaction theo visitor nói chung có thể khác global distinct transaction; trên cửa sổ hiện tại cả hai cùng bằng 980. Artifact Spark người dùng đã chạy xác nhận các tổng và fingerprint khớp, gồm lần build reuse; xem [bằng chứng nghiệm thu](04-testing.md).
 
 Đối soát offline trong lượt triển khai đã lưu tại `artifacts/ml/source-audit.json`, với `runtime_verified=false`. Feature fingerprint theo hợp đồng canonical ở trên là `43dc8b700488e0a2588dcdc9216d39b3c4fdf9d4ab3edc0441edb9049bff605c`. CSV nguồn có SHA-256 `3745aa83238b1e6d44d8fda209807899f420084398f94ddf745f3cbcfecbf9e7`.

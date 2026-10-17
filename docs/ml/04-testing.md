@@ -9,7 +9,7 @@ make test
 make config
 ```
 
-Lượt triển khai này: 34 test hạ tầng và 104 test ứng dụng; 131 đạt, 7 HTTP skipped vì môi trường không cho tạo socket loopback. Có 26 test ML mới: 14 contract/selection/snapshot/package, 6 Mongo boundary và 6 host/launcher. Test offline không cài hoặc import PySpark thực tế; các phép toán Spark được xác nhận bởi bộ live riêng.
+Bộ toàn dự án hiện có 34 test hạ tầng và 135 test ứng dụng; 162 đạt, 7 HTTP skipped vì môi trường không cho tạo socket loopback. Phần K-Means có 26 test offline: 14 contract/selection/snapshot/package, 6 Mongo boundary và 6 host/launcher. Phần RF bổ sung 31 test, được mô tả [riêng](08-purchase-testing.md). Test offline không cài hoặc import PySpark thực tế; các phép toán Spark được xác nhận bởi bộ live riêng.
 
 Các tình huống đã kiểm tra gồm biên cửa sổ tới millisecond, qua ngày UTC, nguồn không bị sửa, multi-item transaction, distinct nhiều ngày, zero view, ratio >1, input đảo thứ tự, leading zero, giới hạn oracle, timestamp/feature không hợp lệ, canonical fingerprint và tie chọn K. Kiểm tra thứ tự pipeline/log năm count/scaler flags, reuse không gọi build, marker/identity/inventory bị hỏng, archive ML tái lập/compile được và SHA hai archive cũ giữ nguyên.
 
@@ -71,6 +71,23 @@ Mỗi job không quá timeout 1.800 giây; giữ tổng limit dưới 7 GiB, kh�
 
 ## Trạng thái bằng chứng
 
-Ngày 17/10/2026, offline đã đạt. Đã thử `make test-ml` nhưng preflight báo permission denied với Docker socket. Host không có PySpark; chưa chạy được sáu test tích hợp, train toàn cohort hoặc đo silhouette/RAM/thời gian thật trong phiên này. Không có báo cáo runtime ML thành công được tạo giả. Chạy các lệnh trên từ terminal có quyền Docker để hoàn tất nghiệm thu.
+Ngày 17/10/2026, đã đối chiếu độc lập artifact runtime do người dùng tạo trong `artifacts/ml/`, gồm report/log/resource của test, feature, train, status và lần chạy lại. `verification.json` có `artifact_checks_passed=true`, `full_source_reuse_verified=true`, `pending=[]`. Đây là kiểm tra bằng chứng đã lưu; phiên công cụ vẫn không có quyền Docker để truy vấn trực tiếp cụm.
+
+| Bằng chứng | Kết quả |
+| --- | --- |
+| Live suite | 6/6 test đạt, 7 fault scenario, cleanup thành công |
+| Cohort | 99.038 visitor, 168.073 event; feature fingerprint khớp CSV |
+| Feature fingerprint | `43dc8b700488e0a2588dcdc9216d39b3c4fdf9d4ab3edc0441edb9049bff605c` |
+| Model | K=2, silhouette `0.8538471325752618` |
+| Kích thước hai cụm | 7.388 và 91.650, tổng 99.038 |
+| Assignment fingerprint | `7b602438e868242ba83a41ba75e8a34babb5b891dc88bc384ea57ce54c5d7320` |
+| Build lần đầu / reuse | 39,339 / 25,361 giây |
+| Train lần đầu / reuse | 97,935 / 50,331 giây |
+| RAM tổng quan sát lớn nhất khi train đầu / reuse | 2,4817 / 2,2699 GiB, tổng container limit 6,25 GiB |
+| Monitor/reload/reuse | Đủ quan sát chín container, không OOM/restart, hai replica; cùng manifest/quality và không fit mới |
+
+Feature ID là `4b3e9d924c88fa6042ae6851871fcd537e5bdda793d3bc2b059df348ecfa89de`; model ID là `8ec975a8e4b74329ff1c68e4c78835a824a3ea3d98990db2e40a5277cc05779d`. Tên “Cụm 0/1” là nhãn mô tả trung tính; silhouette cao không tự chứng minh một chiến lược kinh doanh hiệu quả. `source-audit.json` vẫn giữ `runtime_verified=false` vì nó chỉ là CSV audit; các report Spark và verification mới xác nhận đối soát runtime.
+
+K-Means đã hoàn tất nghiệm thu trong phạm vi này. Random Forest/batch purchase scoring đã triển khai ở giai đoạn tiếp, còn chờ chạy live/full history/reuse; xem [kiểm thử prediction](08-purchase-testing.md).
 
 Phần hành vi trước ML đã có artifact thật: 6/6 behavior tests, 10/10 streaming tests, history/reuse và `behavior-demo-001` thành công. Bằng chứng đó xác nhận nền dữ liệu/streaming; nó không thay thế nghiệm thu pipeline ML mới.

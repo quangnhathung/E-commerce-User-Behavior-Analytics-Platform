@@ -1,12 +1,12 @@
 # E-commerce User Behavior Analytics Platform
 
-Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Mã hiện tại gồm hạ tầng Docker, ingestion Retailrocket CSV → Bronze → Silver, replay Kafka, streaming KPI, session/funnel và feature 7 ngày/K-Means lịch sử. Random Forest, scoring streaming, API và dashboard thuộc các giai đoạn tiếp theo.
+Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Mã hiện tại gồm hạ tầng Docker, ingestion Retailrocket CSV → Bronze → Silver, replay Kafka, streaming KPI, session/funnel, feature 7 ngày/K-Means và Random Forest dự đoán mua hàng theo batch. Scoring streaming, API và dashboard thuộc các giai đoạn tiếp theo.
 
 Kế hoạch sản phẩm đầy đủ: [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
 
 Mục lục tài liệu: [docs/README.md](docs/README.md). Hướng dẫn hạ tầng: [docs/infra/README.md](docs/infra/README.md). Ingestion: [docs/data/README.md](docs/data/README.md). Replay/KPI: [docs/streaming/README.md](docs/streaming/README.md). Session/funnel: [docs/analytics/README.md](docs/analytics/README.md).
 
-Feature/K-Means: [docs/ml/README.md](docs/ml/README.md).
+Machine Learning: [docs/ml/README.md](docs/ml/README.md).
 
 ## Yêu cầu
 
@@ -54,7 +54,7 @@ make config
 make test
 ```
 
-`make test` chạy 34 test hạ tầng và 104 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Không cần cài PySpark trên host. Test HTTP dùng socket loopback; nếu môi trường cấm tạo socket, bảy test này được ghi rõ là skipped. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
+`make test` chạy 34 test hạ tầng và 135 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Lượt hiện tại có 162 đạt, 7 HTTP skipped vì môi trường cấm tạo socket loopback. Không cần cài PySpark trên host. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
 
 ## Nạp dữ liệu lịch sử
 
@@ -117,7 +117,24 @@ make segment-status
 
 Build mặc định chốt lúc `2015-07-15T00:00:00.000Z`, tạo tám feature trên bảy ngày trước đó. Train thử K=2..5 tuần tự, chọn silhouette tốt nhất, lưu/tải lại pipeline và công bố assignment/profile vào MongoDB. Report ở `artifacts/ml/`, hướng dẫn đầy đủ tại [docs/ml/](docs/ml/README.md). Không cần build lại image hoặc tăng ngân sách RAM.
 
-Offline hiện đạt 131 test, 7 HTTP skipped. ML runtime chưa nghiệm thu: phiên công cụ bị từ chối Docker socket khi thử `make test-ml`. Chạy các lệnh trên từ terminal có quyền Docker; chưa có K/silhouette hoặc số đo huấn luyện thật để báo cáo.
+Artifact người dùng đã chạy xác nhận 6/6 test ML đạt, feature khớp CSV, 99.038 visitor, K=2 và silhouette 0,853847. Full-source build/train lần hai reuse cùng manifest/quality, không fit mới; monitor đủ, không OOM/restart. Xem [bằng chứng K-Means](docs/ml/04-testing.md).
+
+## Dự đoán mua hàng theo batch
+
+Với Silver đã sẵn sàng, chạy tuần tự từ terminal có quyền Docker:
+
+```bash
+make test-purchase
+make build-purchase-data
+make train-purchase
+make purchase-status
+make score-purchases
+make purchase-score-status
+```
+
+Dataset có 128 cutoff hằng ngày, feature bảy ngày và nhãn mua trong 24 giờ tiếp theo; chia train/validation/test theo thời gian với khoảng nghỉ. Builder chạy 20 chặng có thể resume. RF dùng 36.750 mẫu train đã sampling, thử bốn cấu hình tuần tự, chọn mô hình/ngưỡng trên validation rồi đánh giá test nguyên bản. Score lịch sử mặc định ngày 18/09/2015; tham chiếu CSV có 69.052 visitor. Có thể tra một visitor bằng `make purchase-score-status VISITOR_ID=001`.
+
+Mã, 31 test offline mới và tài liệu đã có; **RF runtime chưa nghiệm thu** vì `make test-purchase` bị chặn ở preflight Docker socket trong phiên công cụ. Chưa có winner/threshold/PR-AUC RF thực tế. Không cần build image mới. Report ở `artifacts/prediction/`; xem [dữ liệu](docs/ml/05-purchase-data.md), [phương pháp](docs/ml/06-random-forest.md), [vận hành](docs/ml/07-purchase-operations.md) và [nghiệm thu](docs/ml/08-purchase-testing.md).
 
 ## Dịch vụ và phiên bản
 
