@@ -39,8 +39,8 @@ Tổng cộng **chín service thường trực** và **ba job init**. Trạng th
 
 - Dataset và mã ứng dụng được mount read-only vào Spark client. Job batch Bronze/Silver, validation, quarantine và quality report đã có trong mã nguồn; xem [tài liệu dữ liệu](../data/README.md). Runtime ingestion vẫn cần nghiệm thu trên cụm thật.
 - Các thư mục Bronze/Silver/Gold được init chuẩn bị; việc tạo thư mục không đồng nghĩa đã có dữ liệu nghiệp vụ.
-- Topic raw và DLQ đã được khởi tạo; chưa có producer nghiệp vụ, validation streaming hoặc cơ chế tự chuyển event lỗi sang DLQ.
-- Smoke test có Structured Streaming trên dữ liệu nhỏ; chưa có pipeline tính KPI, funnel và feature nghiệp vụ.
+- Topic raw và DLQ được dùng bởi [replay/streaming KPI](../streaming/README.md), có validation, loại trùng và cách ly/DLQ. Mã mới vẫn cần nghiệm thu runtime.
+- Smoke test độc lập với ứng dụng; funnel và feature nghiệp vụ chưa được triển khai.
 - Chưa có huấn luyện K-Means/Random Forest, dự đoán online, FastAPI hoặc dashboard sản phẩm.
 - Spark UI và HDFS UI là giao diện quản trị kỹ thuật, không phải dashboard phân tích thương mại điện tử.
 
@@ -54,8 +54,9 @@ Tại thời điểm biên soạn ngày **16/10/2026**:
 | Kiểm thử offline hạ tầng           | 27 kiểm tra đã đạt; 7 test HTTP skipped vì môi trường cấm socket                         |
 | Cú pháp Python và Bash             | Đã kiểm tra                                                       |
 | Build image                        | Chưa xác minh thành công; bị chặn tại bước truy cập Docker daemon |
-| Smoke và persistence trên cụm thật | Chưa có kết quả chạy xác nhận                                     |
-| Artifact runtime                   | Chưa có thư mục `artifacts/infra/` tại thời điểm rà soát          |
+| Smoke trên cụm thật | Artifact smoke hiện có xác nhận sáu event, hai worker, checkpoint và Mongo upsert |
+| Persistence trên cụm thật | Chưa có kết quả chạy xác nhận |
+| Artifact runtime | Có `artifacts/infra/smoke.json`, `artifacts/data/test-data.json` và ingest lần đầu; streaming mới chưa có report |
 
 Mô tả “kết quả mong đợi” trong các tài liệu là tiêu chí để đối chiếu khi thực thi. JSON minh họa không phải bằng chứng hệ thống đã chạy thành công.
 

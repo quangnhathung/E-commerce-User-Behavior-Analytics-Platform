@@ -1,10 +1,10 @@
 # E-commerce User Behavior Analytics Platform
 
-Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Phạm vi hiện tại gồm hạ tầng Docker và luồng batch Retailrocket CSV → Bronze → Silver, với chuẩn hóa sự kiện, loại trùng, cách ly dòng lỗi và báo cáo chất lượng. Replay Kafka, KPI/funnel, ML, API và dashboard thuộc các giai đoạn tiếp theo.
+Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Mã hiện tại gồm hạ tầng Docker, ingestion Retailrocket CSV → Bronze → Silver, replay Kafka và streaming KPI. Funnel, ML, API và dashboard thuộc các giai đoạn tiếp theo.
 
 Kế hoạch sản phẩm đầy đủ: [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
 
-Mục lục tài liệu: [docs/README.md](docs/README.md). Hướng dẫn hạ tầng: [docs/infra/README.md](docs/infra/README.md). Hợp đồng dữ liệu, ingestion và kiểm thử ứng dụng: [docs/data/README.md](docs/data/README.md).
+Mục lục tài liệu: [docs/README.md](docs/README.md). Hướng dẫn hạ tầng: [docs/infra/README.md](docs/infra/README.md). Ingestion: [docs/data/README.md](docs/data/README.md). Replay/KPI: [docs/streaming/README.md](docs/streaming/README.md).
 
 ## Yêu cầu
 
@@ -52,7 +52,7 @@ make config
 make test
 ```
 
-`make test` chạy 34 test hạ tầng và 16 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Không cần cài PySpark trên host. Test HTTP dùng socket loopback; nếu môi trường cấm tạo socket, bảy test này được ghi rõ là skipped. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
+`make test` chạy 34 test hạ tầng và 55 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Không cần cài PySpark trên host. Test HTTP dùng socket loopback; nếu môi trường cấm tạo socket, bảy test này được ghi rõ là skipped. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
 
 ## Nạp dữ liệu lịch sử
 
@@ -70,7 +70,22 @@ make ingest
 
 Chạy lại `make ingest` với cùng dữ liệu và mã biến đổi sẽ xác minh rồi dùng lại snapshot. Job từ chối snapshot thiếu marker, sai checksum hoặc khác phiên bản mã; không tự ghi đè dữ liệu đã công bố. Báo cáo host nằm trong `artifacts/data/`. Xem [cách chạy và xử lý lỗi](docs/data/03-ingestion.md).
 
-Mã nguồn và kiểm thử offline đã được kiểm tra; phiên công cụ chưa chạy được Spark/HDFS do quyền truy cập Docker socket. Cần hoàn tất [nghiệm thu dữ liệu](docs/data/05-testing.md) trên máy có quyền Docker trước khi xác nhận ingest thực tế thành công.
+Artifact hiện có xác nhận smoke, chín test dữ liệu và ingest lần đầu thành công. Lần ingest xác nhận reuse và các lệnh runtime mới cần chạy trên terminal có quyền Docker; phiên công cụ bị từ chối Docker socket. Xem [nghiệm thu dữ liệu](docs/data/05-testing.md).
+
+## Replay và streaming KPI
+
+Sau khi Silver lịch sử đã sẵn sàng:
+
+```bash
+make test-stream
+make prepare-demo RUN_ID=demo-001
+```
+
+Terminal A chạy `make stream RUN_ID=demo-001`. Khi có `STREAM_READY`, terminal B chạy `make replay RUN_ID=demo-001`; dùng `make stream-status RUN_ID=demo-001` để xem KPI và tiến độ. Streaming tự kết thúc sau khi mọi offset đã ACK được xử lý, checkpoint đã commit và số liệu đã đối soát.
+
+Nguồn mặc định là 2.692 event trong `[10:00,16:00) UTC ngày 10/09/2015`, tốc độ 10 event/giây. Mỗi run giới hạn 10.000 event, giữ ngân sách container khoảng 7 GiB; tính năng này không cần image/service mới. Source và checkpoint cũ được giữ để tiếp tục. Chi tiết: [vận hành streaming](docs/streaming/03-operations.md).
+
+Kiểm thử offline đã đạt. Log người dùng cung cấp có 7/8 test streaming đạt, một test lỗi Kafka leader ngay sau tạo topic. Đã bổ sung chờ topic/retry offset và kiểm thử hồi quy; **chưa nghiệm thu runtime sau sửa** do phiên công cụ bị từ chối Docker socket. Xem [kiểm thử và phục hồi](docs/streaming/04-testing-and-recovery.md).
 
 ## Dịch vụ và phiên bản
 
@@ -144,7 +159,7 @@ docker compose exec spark-client bash
 docker compose exec -T spark-client python3 /opt/infra/smoke/readiness.py
 ```
 
-Driver chạy ở `spark-client`, executor kết nối về các cổng nội bộ cố định. Chỉ chạy một Spark driver tại một thời điểm với cấu hình hiện tại. Các lệnh smoke, persistence-test, ingest và test-data dùng chung khóa để không chạy chồng nhau.
+Driver chạy ở `spark-client`, executor kết nối về các cổng nội bộ cố định. Chỉ chạy một Spark driver tại một thời điểm với cấu hình hiện tại. Smoke, persistence-test, ingest, test-data, prepare-demo, stream và test-stream dùng chung khóa. Producer replay là Python, dùng khóa riêng để chạy cùng streaming.
 
 Ứng dụng được mount read-only từ `app/` vào `/opt/app`; CLI đóng gói dependency Python thành ZIP và phân phối đến executor bằng `spark-submit --deploy-mode client --py-files`. Không dùng `local[*]` để chứng minh xử lý trên hai worker. Kafka connector đã có trong image, không thêm `--packages` tải dependency lúc demo.
 

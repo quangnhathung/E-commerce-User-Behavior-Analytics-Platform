@@ -34,6 +34,11 @@ make smoke
 | `make persistence-test`                  | Cụm healthy, không có job cần tiếp tục chạy | Tạo marker, down/up, verify, clean                             | Token và ba nhóm log/JSON                     |
 | `make test-data`                         | Cụm healthy, mã ứng dụng được mount        | Fixture Spark/HDFS, fault/retry, kiểm tra chất lượng và dọn namespace riêng | `artifacts/data/test-data.json` khi thành công |
 | `make ingest`                            | Cụm healthy, đủ bốn CSV, driver không bận  | Snapshot Bronze/Silver, kiểm tra checksum, loại trùng và cách ly lỗi | Manifest, quality và run log trong `artifacts/data/` |
+| `make prepare-demo` | Có Silver lịch sử, driver rảnh | Xuất replay, manifest, tham chiếu và offset đầu | `artifacts/streaming/<run_id>/` |
+| `make stream` | Run đã chuẩn bị, driver rảnh | Streaming KPI, checkpoint và tự kết thúc | Report streaming và tài nguyên |
+| `make replay` | Run đã chuẩn bị, producer rảnh | Phát Kafka theo tốc độ, ACK/cursor | Producer report và ACK local |
+| `make stream-status` | Có client/MongoDB và config run | Đọc trạng thái, KPI snapshot đã công bố | Status JSON |
+| `make test-stream` | Cụm healthy, driver rảnh | Fixture và fault/restart trên namespace riêng | `artifacts/streaming/test-stream.json` |
 | `make ps`                                | File local, daemon                          | Compose ps all                                                 | Container đang chạy và init đã thoát          |
 | `make logs`                              | File local, daemon                          | Xem tối đa 100 dòng mỗi service                                | Không follow liên tục                         |
 | `make versions`                          | Image đã có, daemon                         | Inspect image và phiên bản công cụ                             | `versions.json`                               |
@@ -45,6 +50,8 @@ make smoke
 Mọi action qua manager ngoài `setup` đều yêu cầu cấu hình local hợp lệ. `make test` gọi unittest trực tiếp nên không cần file local; nó dùng template khi kiểm tra Compose.
 
 `ingest` và `test-data` chạy qua [manager ứng dụng](../../app/manage.py), dùng cùng cấu hình và khóa driver với smoke/persistence. Chi tiết đầu vào, tác động khi chạy lại và xử lý lỗi: [vận hành ingestion](../data/03-ingestion.md).
+
+Các lệnh replay/streaming dùng [manager streaming](../../app/streaming_manage.py). Producer có khóa riêng, các Spark job dùng khóa driver chung. Cách chạy hai terminal và tham số RUN_ID/START/END/RATE: [vận hành streaming](../streaming/03-operations.md).
 
 ## 3. Trạng thái và log
 

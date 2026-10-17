@@ -256,6 +256,9 @@ def driver_lock():
         except BlockingIOError as error:
             raise InfraError("Another managed Spark job is running (smoke, persistence or application)") from error
         try:
+            if (ARTIFACTS / "driver-unconfirmed.json").exists():
+                raise InfraError("A remote Spark job was not confirmed stopped; inspect artifacts/infra/driver-unconfirmed.json "
+                                 "and confirm the recorded job has stopped before removing that marker")
             yield
         finally:
             fcntl.flock(lock, fcntl.LOCK_UN)
