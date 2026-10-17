@@ -52,7 +52,7 @@ make config
 make test
 ```
 
-`make test` chạy 34 test hạ tầng và 43 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Không cần cài PySpark trên host. Test HTTP dùng socket loopback; nếu môi trường cấm tạo socket, bảy test này được ghi rõ là skipped. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
+`make test` chạy 34 test hạ tầng và 55 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Không cần cài PySpark trên host. Test HTTP dùng socket loopback; nếu môi trường cấm tạo socket, bảy test này được ghi rõ là skipped. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
 
 ## Nạp dữ liệu lịch sử
 
@@ -85,7 +85,7 @@ Terminal A chạy `make stream RUN_ID=demo-001`. Khi có `STREAM_READY`, termina
 
 Nguồn mặc định là 2.692 event trong `[10:00,16:00) UTC ngày 10/09/2015`, tốc độ 10 event/giây. Mỗi run giới hạn 10.000 event, giữ ngân sách container khoảng 7 GiB; tính năng này không cần image/service mới. Source và checkpoint cũ được giữ để tiếp tục. Chi tiết: [vận hành streaming](docs/streaming/03-operations.md).
 
-Kiểm thử offline đã đạt; **chưa nghiệm thu runtime streaming** trong phiên công cụ do Docker socket bị từ chối.
+Kiểm thử offline đã đạt. Log người dùng cung cấp có 7/8 test streaming đạt, một test lỗi Kafka leader ngay sau tạo topic. Đã bổ sung chờ topic/retry offset và kiểm thử hồi quy; **chưa nghiệm thu runtime sau sửa** do phiên công cụ bị từ chối Docker socket. Xem [kiểm thử và phục hồi](docs/streaming/04-testing-and-recovery.md).
 
 ## Dịch vụ và phiên bản
 

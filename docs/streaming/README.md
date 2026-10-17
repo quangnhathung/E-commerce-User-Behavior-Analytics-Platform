@@ -46,4 +46,4 @@ Mã ứng dụng đã được mount tại `/opt/app`; không thêm service, vol
 
 ## Trạng thái kiểm chứng
 
-Kiểm thử offline của streaming đã đạt, archive ingest giữ nguyên SHA-256. Nguồn demo đã được đối soát offline. Phiên công cụ bị từ chối truy cập Docker socket, nên **chưa có kết quả chạy `test-stream` hoặc demo streaming thật**. Bằng chứng smoke/ingest cũ chỉ chứng minh các giai đoạn tương ứng. Xem [tiêu chí nghiệm thu](04-testing-and-recovery.md).
+Kiểm thử offline của streaming đã đạt, archive ingest giữ nguyên SHA-256. Nguồn demo đã được đối soát offline. Log người dùng ngày 17/10/2026 xác nhận 7/8 test tích hợp đạt; test DLQ lỗi đọc offset Kafka ngay sau tạo topic. Bản sửa thêm chờ topic/retry có deadline và 12 test hồi quy đã đạt. Phiên công cụ vẫn bị từ chối Docker socket, nên **chưa xác minh `test-stream` sau sửa hoặc demo streaming thật**. Bằng chứng smoke/ingest cũ chỉ chứng minh các giai đoạn tương ứng. Xem [tiêu chí nghiệm thu và hướng dẫn chạy lại](04-testing-and-recovery.md).
