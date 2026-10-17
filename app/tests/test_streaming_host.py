@@ -1,6 +1,7 @@
 """Real host file/lock boundaries and container observation interpretation."""
 import hashlib
 import importlib.util
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -102,6 +103,59 @@ class HostTests(unittest.TestCase):
         with mock.patch.object(self.monitor, "states", return_value={"old": {"memory_limit": 8 * 1024 ** 3}}):
             with self.assertRaisesRegex(self.manage.infra.InfraError, "7 GiB"):
                 self.monitor.Monitor()
+
+    def test_failed_analysis_does_not_replace_latest_historical_pointer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "artifacts/data").mkdir(parents=True)
+            (root / "artifacts/data/latest-ingest.json").write_text('{"dataset_version":"source","silver_path":"/silver"}')
+            analytics = root / "analytics"
+            analytics.mkdir()
+            latest = analytics / "latest-analysis.json"
+            latest.write_text('{"analysis_id":"previous"}')
+            with mock.patch.object(self.manage, "ROOT", root), mock.patch.object(self.manage, "ANALYTICS", analytics), \
+                 mock.patch.object(self.manage, "launch", side_effect=self.manage.infra.InfraError("failed")):
+                with self.assertRaises(self.manage.infra.InfraError):
+                    self.manage.analyze_history()
+            self.assertEqual({"analysis_id": "previous"}, json.loads(latest.read_text()))
+
+    def test_analysis_spec_pins_source_code_and_behavior_before_reporting(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "artifacts/data").mkdir(parents=True)
+            (root / "artifacts/data/latest-ingest.json").write_text('{"dataset_version":"source","silver_path":"/silver"}')
+            analytics = root / "analytics"
+            captured = []
+
+            def launch(action, specification, destination):
+                captured.append(specification("code-sha"))
+                return {"analysis_id": "a" * 64, "passed": True}
+
+            with mock.patch.object(self.manage, "ROOT", root), mock.patch.object(self.manage, "ANALYTICS", analytics), \
+                 mock.patch.object(self.manage, "launch", side_effect=launch):
+                self.manage.analyze_history()
+            self.assertEqual("code-sha", captured[0]["request"]["code_sha256"])
+            self.assertEqual(self.manage.BEHAVIOR_VERSION, captured[0]["request"]["behavior_version"])
+            self.assertEqual("/silver", captured[0]["request"]["silver_path"])
+            self.assertTrue((analytics / ("a" * 64) / "report.json").exists())
+            self.assertEqual({"analysis_id": "a" * 64}, json.loads((analytics / "latest-analysis.json").read_text()))
+
+    def test_behavior_status_selects_scope_and_preserves_item_string(self):
+        with tempfile.TemporaryDirectory() as directory:
+            analytics, streaming = Path(directory) / "analytics", Path(directory) / "streaming"
+            analytics.mkdir()
+            (analytics / "latest-analysis.json").write_text(json.dumps({"analysis_id": "a" * 64}))
+            (streaming / "demo").mkdir(parents=True)
+            (streaming / "demo/config.json").write_text('{"run_id":"demo"}')
+            with mock.patch.object(self.manage, "ANALYTICS", analytics), mock.patch.object(self.manage, "ARTIFACTS", streaming), \
+                 mock.patch.object(self.manage, "launch", return_value={"passed": True}) as launch:
+                with self.assertRaises(self.manage.infra.InfraError):
+                    self.manage.behavior_status(types.SimpleNamespace(item_id="../escape", run_id=None))
+                launch.assert_not_called()
+                self.manage.behavior_status(types.SimpleNamespace(item_id="001", run_id=None))
+                self.assertEqual({"analysis_id": "a" * 64, "item_id": "001"}, launch.call_args.args[1])
+                self.manage.behavior_status(types.SimpleNamespace(item_id="001", run_id="demo"))
+                self.assertEqual({"config": {"run_id": "demo"}, "item_id": "001"}, launch.call_args.args[1])
 
 
 if __name__ == "__main__":
