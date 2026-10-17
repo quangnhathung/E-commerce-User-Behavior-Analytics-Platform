@@ -1,5 +1,6 @@
 """Bounded Kafka delivery and replay; dependencies are imported only at runtime."""
 import json
+import math
 import os
 import time
 
@@ -11,16 +12,54 @@ def broker_config():
     return {"bootstrap.servers": os.environ["KAFKA_BOOTSTRAP_SERVERS"], "socket.timeout.ms": 10000}
 
 
-def end_offsets(topic):
-    from confluent_kafka import Consumer, TopicPartition
+def end_offsets(topic, *, partitions=3, timeout=30):
+    """Wait for leaders and query every partition within one shared retry budget."""
+    from confluent_kafka import Consumer, KafkaError, KafkaException, TopicPartition
+    if not isinstance(partitions, int) or partitions < 1 or not math.isfinite(timeout) or timeout <= 0:
+        raise ValueError("Kafka readiness requires a positive partition count and finite positive timeout")
+    # The watermark API exposes plain error codes, whose retriable flag may be unset.
+    transient = {KafkaError.UNKNOWN_TOPIC_OR_PART, KafkaError.LEADER_NOT_AVAILABLE,
+                 KafkaError.NOT_LEADER_FOR_PARTITION, KafkaError.REQUEST_TIMED_OUT,
+                 KafkaError._UNKNOWN_TOPIC, KafkaError._UNKNOWN_PARTITION,
+                 KafkaError._TIMED_OUT, KafkaError._TRANSPORT, KafkaError._ALL_BROKERS_DOWN}
+    deadline, delay, last_error = time.monotonic() + timeout, .25, None
+
+    def request_timeout():
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            reason = str(last_error) if last_error is not None else "offset query did not finish"
+            raise TimeoutError(f"Kafka topic {topic!r} not ready within {timeout:g}s: {reason}") from last_error
+        return min(10.0, remaining)
+
     client = Consumer({**broker_config(), "group.id": "replay-offset-inspection", "enable.auto.commit": False})
     try:
-        metadata = client.list_topics(topic=topic, timeout=10)
-        details = metadata.topics[topic]
-        if details.error is not None or len(details.partitions) != 3:
-            raise ValueError("Replay input must have exactly three healthy partitions")
-        return {str(partition): client.get_watermark_offsets(TopicPartition(topic, partition), timeout=10, cached=False)[1]
-                for partition in sorted(details.partitions)}
+        while True:
+            try:
+                metadata = client.list_topics(topic=topic, timeout=request_timeout())
+                details = metadata.topics.get(topic)
+                if details is None:
+                    raise KafkaException(KafkaError(KafkaError.UNKNOWN_TOPIC_OR_PART, "Topic metadata not available"))
+                if details.error is not None:
+                    raise KafkaException(details.error)
+                if set(details.partitions) != set(range(partitions)):
+                    raise ValueError(f"Kafka topic {topic!r} must have exactly {partitions} partitions numbered from zero")
+                for partition in details.partitions.values():
+                    if partition.error is not None:
+                        raise KafkaException(partition.error)
+                    if partition.leader < 0:
+                        raise KafkaException(KafkaError(KafkaError.LEADER_NOT_AVAILABLE, "Partition leader not available"))
+                # Discard this whole attempt if any partition fails; refresh metadata before retry.
+                offsets = {str(partition): client.get_watermark_offsets(
+                    TopicPartition(topic, partition), timeout=request_timeout(), cached=False)[1]
+                    for partition in sorted(details.partitions)}
+                request_timeout()
+                return offsets
+            except KafkaException as error:
+                if error.args[0].code() not in transient:
+                    raise
+                last_error = error
+            time.sleep(min(delay, request_timeout()))
+            delay = min(1.0, delay * 2)
     finally:
         client.close()
 
@@ -107,6 +146,9 @@ def create_test_topics(raw, dlq):
             errors.append(error)
     if errors:
         raise errors[0]
+    # CreateTopics success may precede leader readiness and client metadata propagation.
+    end_offsets(raw)
+    end_offsets(dlq, partitions=1)
 
 
 def delete_test_topics(topics):
