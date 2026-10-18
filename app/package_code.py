@@ -8,7 +8,7 @@ import zipfile
 
 def package_code(destination, source=None, profile="ingest"):
     source = source or Path(__file__).resolve().parent
-    if profile not in ("ingest", "streaming", "ml", "prediction", "purchase-policy"):
+    if profile not in ("ingest", "streaming", "ml", "prediction", "purchase-policy", "streaming-ml"):
         raise ValueError("Unknown application archive profile")
     packages = ["ecommerce_analytics"]
     if profile == "streaming":
@@ -19,6 +19,9 @@ def package_code(destination, source=None, profile="ingest"):
         packages.extend(("ecommerce_ml", "ecommerce_prediction"))
     if profile == "purchase-policy":
         packages.extend(("ecommerce_ml", "ecommerce_prediction", "ecommerce_purchase_policy"))
+    if profile == "streaming-ml":
+        packages.extend(("ecommerce_streaming", "ecommerce_behavior", "ecommerce_ml",
+                         "ecommerce_prediction", "ecommerce_purchase_policy", "ecommerce_streaming_ml"))
     destination = Path(destination)
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for path in sorted(path for package in packages for path in (source / package).rglob("*.py")):
@@ -32,6 +35,6 @@ def package_code(destination, source=None, profile="ingest"):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True)
-    parser.add_argument("--profile", choices=("ingest", "streaming", "ml", "prediction", "purchase-policy"), default="ingest")
+    parser.add_argument("--profile", choices=("ingest", "streaming", "ml", "prediction", "purchase-policy", "streaming-ml"), default="ingest")
     args = parser.parse_args()
     print(json.dumps(package_code(args.output, profile=args.profile)))
