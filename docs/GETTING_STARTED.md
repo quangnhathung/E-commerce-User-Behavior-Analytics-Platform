@@ -2,9 +2,9 @@
 
 [← Mục lục tài liệu](README.md) · [README dự án](../README.md)
 
-Tài liệu này dành cho developer nhận repository và tự chạy từ đầu: cài công cụ, chuẩn bị Retailrocket, dựng Docker Compose, ingest, phân tích lịch sử/streaming, K-Means, Random Forest và policy ưu tiên precision. Không cần `.env`, model, volume hoặc thư mục `artifacts/` của người bàn giao.
+Tài liệu này dành cho developer nhận repository và tự chạy từ đầu: cài công cụ, chuẩn bị Retailrocket, dựng Docker Compose, ingest, phân tích lịch sử/streaming, K-Means, Random Forest, policy precision và ML streaming có simulator. Không cần `.env`, model, volume hoặc thư mục `artifacts/` của người bàn giao.
 
-Đối chiếu mã nguồn và artifact đến **17/10/2026**. Các lệnh ứng dụng bên dưới chạy trong **Bash trên Linux hoặc Ubuntu WSL2**, tại thư mục gốc repository. Các khối PowerShell chỉ dùng để chuẩn bị Windows. Chạy từng giai đoạn và kiểm tra kết quả trước khi chuyển bước.
+Đối chiếu mã nguồn và artifact đến **18/10/2026**. Pipeline ML streaming mới có offline test, còn chờ nghiệm thu runtime; các phần batch/v2 có bằng chứng được nêu riêng. Các lệnh ứng dụng bên dưới chạy trong **Bash trên Linux hoặc Ubuntu WSL2**, tại thư mục gốc repository. Các khối PowerShell chỉ dùng để chuẩn bị Windows. Chạy từng giai đoạn và kiểm tra kết quả trước khi chuyển bước.
 
 ## Mục lục
 
@@ -19,11 +19,12 @@ Tài liệu này dành cho developer nhận repository và tự chạy từ đ�
 9. [Feature và K-Means](#segments)
 10. [Random Forest và batch scoring](#prediction)
 11. [Policy precision và score mới](#policy)
-12. [Đọc artifact, selector và theo dõi](#artifacts)
-13. [Nghiệm thu chạy lại](#reuse)
-14. [Khởi động lại, ngắt job và xử lý lỗi](#recovery)
-15. [Dừng và dọn dữ liệu](#cleanup)
-16. [Checklist bàn giao](#handoff)
+12. [ML streaming: replay và simulator](#streaming-ml)
+13. [Đọc artifact, selector và theo dõi](#artifacts)
+14. [Nghiệm thu chạy lại](#reuse)
+15. [Khởi động lại, ngắt job và xử lý lỗi](#recovery)
+16. [Dừng và dọn dữ liệu](#cleanup)
+17. [Checklist bàn giao](#handoff)
 
 <a id="scope"></a>
 ## 1. Phạm vi và luồng dữ liệu
@@ -41,15 +42,20 @@ flowchart LR
     SILVER --> REPLAY["Chuẩn bị demo và replay"]
     REPLAY --> KAFKA["Kafka raw"]
     KAFKA --> STREAM["Spark streaming: KPI, session, funnel"]
+    STREAM --> LIVE["Pipeline mới: feature, K-Means, RF và policy"]
+    RF --> LIVE
+    HISTORY --> LIVE
     STREAM --> DLQ["Kafka DLQ: event lỗi"]
     HISTORY --> GOLD["HDFS Gold và models"]
     RF --> GOLD
     POLICY --> GOLD
     STREAM --> GOLD
+    LIVE --> GOLD
     HISTORY --> MONGO["MongoDB: kết quả và lookup"]
     RF --> MONGO
     POLICY --> MONGO
     STREAM --> MONGO
+    LIVE --> MONGO
 ```
 
 | Thành phần | Công dụng |
@@ -61,7 +67,7 @@ flowchart LR
 | MongoDB | Giữ kết quả đã công bố, metadata và lookup theo visitor/sản phẩm. |
 | Make và Python CLI | Kiểm tra điều kiện, điều phối job, khóa driver, ghi log và report. |
 
-Đã có ingestion, KPI streaming, session/funnel lịch sử và streaming, K-Means lịch sử, RF batch và policy precision. **Scoring ML trên streaming, FastAPI và dashboard sản phẩm chưa triển khai**. Spark/HDFS UI là giao diện vận hành. Retailrocket không có giá/doanh thu hoặc bước bắt đầu thanh toán; funnel hiện tại là **xem → thêm giỏ → mua**. Hai worker/DataNode cùng một máy không bảo vệ khi cả máy hoặc ổ đĩa hỏng.
+Đã có ingestion, KPI streaming, session/funnel lịch sử và streaming, K-Means lịch sử, RF batch/policy và pipeline **ML streaming mới chờ nghiệm thu runtime**. **FastAPI và dashboard sản phẩm chưa triển khai**. Spark/HDFS UI là giao diện vận hành. Retailrocket không có giá/doanh thu hoặc bước bắt đầu thanh toán; funnel hiện tại là **xem → thêm giỏ → mua**. Hai worker/DataNode cùng một máy không bảo vệ khi cả máy hoặc ổ đĩa hỏng.
 
 Các nhánh phụ thuộc như sau; thứ tự trong tài liệu là một lộ trình chạy đầy đủ:
 
@@ -72,6 +78,7 @@ Các nhánh phụ thuộc như sau; thứ tự trong tài liệu là một lộ 
 | Behavior lịch sử, demo streaming, K-Means | Silver đã ingest đạt chất lượng |
 | RF | Silver; không cần dùng cluster K-Means làm feature |
 | Policy | RF published, validation/test predictions và original batch score |
+| ML streaming | Silver, K-Means, RF và policy eligible đã published; không cần tạo batch score mới |
 
 <a id="requirements"></a>
 ## 2. Yêu cầu máy và công cụ
@@ -330,7 +337,7 @@ Không tạo lại `.env` khi volume đang giữ dữ liệu. Đổi password tr
 make test
 ```
 
-Bộ hiện tại có 34 test hạ tầng và 161 test ứng dụng. Trên máy bình thường kỳ vọng các suite kết thúc `OK`, không failure/error. Một phiên kiểm tra trong sandbox có 188 đạt, 7 HTTP skipped vì cấm loopback socket; đó là giới hạn của phiên ấy, **không phải số skip bắt buộc trên máy mới**. Test offline không chứng minh Spark/HDFS/Mongo/Kafka thực sự hoạt động. Nếu lỗi thiếu Compose/Bash/curl, sửa công cụ host rồi chạy lại.
+Bộ hiện tại có 34 test hạ tầng và 187 test ứng dụng. Trên máy bình thường kỳ vọng các suite kết thúc `OK`, không failure/error. Một phiên kiểm tra trong sandbox có 214 đạt, 7 HTTP skipped vì cấm loopback socket; đó là giới hạn của phiên ấy, **không phải số skip bắt buộc trên máy mới**. Test offline không chứng minh Spark/HDFS/Mongo/Kafka thực sự hoạt động. Nếu lỗi thiếu Compose/Bash/curl, sửa công cụ host rồi chạy lại.
 
 ### 6.2. Build image lần đầu
 
@@ -601,14 +608,61 @@ make purchase-score-status SCORE_RUN_ID="$POLICY_SCORE_RUN_ID" VISITOR_ID=001
 
 Biến shell này chỉ tồn tại ở terminal hiện tại; mở terminal mới thì đọc lại pointer. **Không truyền `SCORE_RUN_ID` thì status vẫn đọc score gốc**, vì apply không sửa `latest-purchase-score.json`. Không hardcode ID dài từ máy bàn giao.
 
-**Đạt khi:** policy score published, count vẫn **69.052**, score-only fingerprint không đổi, nhãn đúng ngưỡng, Mongo/HDFS đối soát và monitor đạt. Lượt tham chiếu có **4 predicted positive** sau policy; đây là nhãn batch, không phải precision test trên bốn người. Apply lần hai đã được xác nhận `reused=true`, cùng ID/fingerprint, không duplicate. Máy mới cần kiểm riêng bước reuse ở mục 13.
+**Đạt khi:** policy score published, count vẫn **69.052**, score-only fingerprint không đổi, nhãn đúng ngưỡng, Mongo/HDFS đối soát và monitor đạt. Lượt tham chiếu có **4 predicted positive** sau policy; đây là nhãn batch, không phải precision test trên bốn người. Apply lần hai đã được xác nhận `reused=true`, cùng ID/fingerprint, không duplicate. Máy mới cần kiểm riêng bước reuse ở mục 14.
 
 Nếu model/source/code/Spark version không khớp, đọc đúng log và selector; không sửa pointer bằng tay để ép apply. Xem [policy: quy tắc, báo cáo và phục hồi](ml/09-purchase-policy.md).
 
-<a id="artifacts"></a>
-## 12. Đọc artifact, selector và theo dõi
+<a id="streaming-ml"></a>
+## 12. ML streaming: replay và simulator
 
-### 12.1. File nào dùng để làm gì?
+**Cần có:** Silver, K-Means, RF và policy eligible đã published, mọi Spark driver trước đã kết thúc. Không build image hoặc fit lại model nguồn thật. Pipeline mới có namespace/checkpoint riêng; các lệnh ở mục 8 vẫn chạy KPI/funnel v2 độc lập.
+
+Kiểm thử và chuẩn bị replay mới, từ root:
+
+```bash
+make test-stream-ml
+make prepare-ml-demo RUN_ID=ml-replay-001
+```
+
+Suite phải đạt bảy test, bảy fault scenario, cleanup và resource acceptance. Artifact hiện tại mới xác nhận offline; live suite cần chạy trên máy bạn. Prepare khóa model/policy từ latest pointer và seed bảy ngày **trước START**, không dùng phần replay chưa qua Kafka để tính feature.
+
+Replay ML mặc định ngày **18/09/2015 `[00:00,03:00)` UTC**, 10 event/giây, có 1.528 event và 1.016 visitor. Ngày bắt đầu đã nằm sau cửa sổ nhãn test của policy hiện có; không dùng mặc định v2 ngày 10/09 cho policy này. Cửa sổ demo tối đa 24 giờ/10.000 event.
+
+Terminal A, Bash cùng clone:
+
+```bash
+cd ~/workspace/E-commerce-User-Behavior-Analytics-Platform
+make stream-ml RUN_ID=ml-replay-001
+```
+
+Đợi `STREAM_ML_READY=ml-replay-001`, terminal B:
+
+```bash
+cd ~/workspace/E-commerce-User-Behavior-Analytics-Platform
+make replay-ml RUN_ID=ml-replay-001
+```
+
+Terminal khác có thể chạy `make stream-ml-status RUN_ID=ml-replay-001`. Đợi consumer tự kết thúc trước bước tiếp. Mỗi snapshot tính feature tại max accepted event-time +1 ms, transform bằng hai model đã tải và gắn nhãn theo policy. Đạt khi backlog 0, `batch_reconciled=true`, đủ 1.528 event/1.016 prediction, checkpoint/resource/hai worker/hai replica đạt; đọc mục tiêu latency riêng trong report.
+
+Sau đó chuẩn bị simulator bằng RUN_ID khác:
+
+```bash
+make prepare-ml-demo RUN_ID=ml-sim-001 DEMO_SOURCE=simulator
+```
+
+Terminal A chạy `make stream-ml RUN_ID=ml-sim-001`; đợi READY, terminal B chạy `make simulate-ml RUN_ID=ml-sim-001`. Ba visitor mới phát chín event qua ba đợt; producer đợi snapshot trước committed rồi phát tiếp. Có visitor chỉ xem, visitor xem → giỏ → mua và visitor thêm giỏ trước lượt xem, giữ leading zero.
+
+```bash
+make stream-ml-status RUN_ID=ml-sim-001
+make stream-ml-status RUN_ID=ml-sim-001 VISITOR_ID=000099000000003
+```
+
+Đạt khi đủ ba visitor/chín event, feature cập nhật ba đợt, final snapshot được đối soát và monitor đạt. Không ép score/label phải tăng. Các run mới nằm ở `artifacts/streaming-ml/`; không thay các pointer batch gốc. Retry cùng RUN_ID/mã/config, giữ seed/checkpoint; muốn đổi model hoặc nguồn thì prepare RUN_ID mới. Chi tiết field, selector, timeout, fault và cleanup: [ML streaming](ml/10-streaming-scoring.md).
+
+<a id="artifacts"></a>
+## 13. Đọc artifact, selector và theo dõi
+
+### 13.1. File nào dùng để làm gì?
 
 `artifacts/` được tạo khi chạy, không nằm trong Git. HDFS/Mongo giữ dữ liệu và registry; file host là log, bản sao report và pointer cho CLI. Pointer `latest-*` chỉ chọn một phiên bản thành công gần nhất, không phải toàn bộ lịch sử. Khi job mới fail, pointer cũ vẫn có thể tồn tại; đối chiếu log/exit code/thời điểm attempt mới.
 
@@ -625,6 +679,7 @@ Nếu model/source/code/Spark version không khớp, đọc đúng log và selec
 | `prediction/latest-purchase-score.json` | Original batch score; giữ nguyên khi apply policy |
 | `prediction/policies/latest-policy.json` | Policy đánh giá gần nhất, có thể `eligible=false` |
 | `prediction/policies/latest-policy-score.json` | Score run mới được apply policy |
+| `streaming-ml/latest-run.json`, `streaming-ml/<RUN_ID>/` | Config/model binding, seed/source references, ACK, report/status và resources của ML streaming |
 
 Các lệnh ứng dụng dùng ID để ghi `report.json`, `status.json`, log/resource hoặc attempt log trong namespace tương ứng; đường dẫn log chính xác thường nằm trong field `log` của report. Có thể đọc JSON mà không cần cài `jq`:
 
@@ -646,7 +701,7 @@ print(json.dumps(report, indent=2, ensure_ascii=False))
 PY
 ```
 
-### 12.2. Selector và identity
+### 13.2. Selector và identity
 
 | Tham số Make | Dùng cho |
 | --- | --- |
@@ -659,12 +714,13 @@ PY
 | `SCORE_RUN_ID` | Status một score cụ thể; khi apply là **original source score** |
 | `POLICY_VERSION` | Chọn policy đã đánh giá |
 | `VISITOR_ID` | Lookup ID chuỗi, giữ leading zero |
+| `DEMO_SOURCE`, `SEGMENT_MODEL_VERSION`, `PURCHASE_MODEL_VERSION` | Chọn replay/simulator và model riêng khi prepare ML streaming; policy dùng `POLICY_VERSION` |
 
 Dùng assignment trên từng lệnh, ví dụ `make behavior-status RUN_ID=onboarding-demo-001`, thay vì export selector dài hạn làm các giai đoạn sau đọc nhầm registry. ID model/snapshot phụ thuộc dữ liệu, mã, tham số và phiên bản; không lấy ID máy khác để điền trên máy mới. Không tự sửa JSON pointer hoặc snapshot đã published.
 
 Ứng dụng bind mount `app/` vào `/opt/app`; sửa app thường không cần image rebuild. Tuy vậy archive code hash là một phần hợp đồng snapshot/run. Đổi package có thể buộc tạo identity mới hoặc từ chối tiếp tục run cũ. Giữ nguyên commit để resume; thay Dockerfile/dependency thì mới build lại image và áp dụng `make up` khi không có job.
 
-### 12.3. Dịch vụ và quan sát
+### 13.3. Dịch vụ và quan sát
 
 | Endpoint mặc định từ host | Công dụng |
 | --- | --- |
@@ -688,7 +744,7 @@ docker compose logs --tail=100 kafka spark-master spark-client
 `make logs` theo dõi log service liên tục; Ctrl+C chỉ kết thúc việc xem log. Job logs chứa kết quả chi tiết hơn log container. Resource acceptance cần `no_oom_or_restart=true`, `memory_observations_complete=true` với các job có monitor, cùng hai worker/hai replica theo report. Chỉ nhìn một lần `docker stats` không đủ chứng minh toàn job không OOM. Không gửi log/config chứa mật khẩu vào Git hoặc kênh công khai.
 
 <a id="reuse"></a>
-## 13. Nghiệm thu chạy lại, không cần dựng lại máy
+## 14. Nghiệm thu chạy lại, không cần dựng lại máy
 
 Sau lượt đầu thành công, lưu report/log/resources và commit dùng để chạy. Lặp từng lệnh dưới đây **tuần tự, cùng nguồn/mã/tham số**, khi không còn driver khác. Các bước reuse vẫn phải đọc và xác minh snapshot, có thể mất vài phút hoặc lâu hơn; đây là phần nghiệm thu bổ sung, không bắt buộc lặp mỗi lần mở máy.
 
@@ -702,15 +758,16 @@ Sau lượt đầu thành công, lưu report/log/resources và commit dùng đ�
 | `make score-purchases` | Cùng score ID/fingerprint, không thêm Mongo duplicate |
 | `make tune-purchase-policy` | Cùng policy/selection/evaluation, `reused=true`; không chọn ngưỡng lại |
 | `make apply-purchase-policy` nếu eligible | Cùng policy score ID, `reused=true`, Mongo count/fingerprint không đổi |
+| `make stream-ml RUN_ID=...` sau completed | Cùng config/model, checkpoint cuối và ML fingerprint, `reused=true`, không phát lại event hoặc thêm row trùng |
 
 Sau apply lại, đọc lại `latest-policy-score.json` và chạy `purchase-score-status SCORE_RUN_ID=...` bằng cách ở mục 11. Original pointer vẫn phải giữ nguyên. Với cùng identity, retry snapshot published chỉ xác minh; không âm thầm chữa payload hỏng.
 
 Bằng chứng hiện có của máy bàn giao đã xác nhận behavior/K-Means full-source reuse và policy **apply reuse**. RF gốc build/train/score toàn nguồn và full-source tune-policy reuse chưa có đủ bằng chứng chạy lặp; live fixture đã kiểm các nhánh reuse nhưng không thay thế nghiệm thu trên toàn nguồn. Người nhận đánh dấu theo kết quả máy mình, không kế thừa dấu đạt chỉ từ tài liệu.
 
 <a id="recovery"></a>
-## 14. Khởi động lại, ngắt job và xử lý lỗi
+## 15. Khởi động lại, ngắt job và xử lý lỗi
 
-### 14.1. Sau reboot hoặc ngày làm việc mới
+### 15.1. Sau reboot hoặc ngày làm việc mới
 
 Mở Docker daemon/Desktop; trên WSL mở Ubuntu đã bật integration. Tại **cùng clone**, dùng `.env` và volume cũ:
 
@@ -725,7 +782,7 @@ make doctor
 
 Không cần chạy lại setup/build/ingest/train nếu image, cấu hình và dữ liệu còn nguyên. Có thể chạy smoke trước khi tiếp tục kiểm thử; chỉ khi không có job khác. Dùng status của giai đoạn đã hoàn thành, hoặc retry đúng job bị ngắt. `docker compose up -d` có cú pháp đúng nhưng `make up` là entrypoint khuyến nghị vì có preflight/readiness bổ sung; `docker compose-up -d` là sai cú pháp.
 
-### 14.2. Ctrl+C và khóa driver
+### 15.2. Ctrl+C và khóa driver
 
 Các manager ứng dụng áp timeout **1.800 giây mỗi child**, gửi cancel theo UUID và xác nhận remote job đã dừng khi ngắt. Smoke/persistence giới hạn **600 giây mỗi child**. Chờ lệnh trả về và đọc thông báo trước khi mở job mới; kill Docker exec client không luôn đồng nghĩa driver trong container đã dừng.
 
@@ -735,7 +792,7 @@ Nếu có `artifacts/infra/driver-unconfirmed.json`, đọc marker, log UUID và
 
 Snapshot đã commit được giữ để retry; phần staging chưa published không được coi là kết quả. Không đổi branch, sửa package hoặc sửa CSV giữa lần bị ngắt và lần resume.
 
-### 14.3. Bảng xử lý nhanh
+### 15.3. Bảng xử lý nhanh
 
 | Triệu chứng | Kiểm tra và hành động |
 | --- | --- |
@@ -759,7 +816,7 @@ Snapshot đã commit được giữ để retry; phần staging chưa published 
 Chi tiết thêm: [hạ tầng](infra/07-troubleshooting.md), [ingestion](data/03-ingestion.md), [prediction](ml/07-purchase-operations.md).
 
 <a id="cleanup"></a>
-## 15. Dừng và dọn dữ liệu đúng phạm vi
+## 16. Dừng và dọn dữ liệu đúng phạm vi
 
 Trước khi dừng/reset, kết thúc job ở terminal đang chạy và xác nhận remote driver đã dừng. Chọn thao tác theo mục đích:
 
@@ -796,7 +853,7 @@ Sau đó `make up`, doctor, smoke rồi chạy lại ingest và các bước c�
 Nếu muốn thu hồi cả image/cache: xem [vòng đời hạ tầng](infra/04-bootstrap-and-lifecycle.md) và [build/cache](infra/09-build-optimization.md), kiểm tra `docker system df` và danh sách image trước. Hadoop/Spark image được nhiều service dùng chung; Kafka/Mongo và BuildKit cache cũng có thể được project khác dùng. Chỉ xóa image ID/cache đã xác định không cần; tránh `docker system prune --all --volumes` như một bước mặc định. Không xóa cache tải dở trong lúc muốn tiếp tục build.
 
 <a id="handoff"></a>
-## 16. Checklist bàn giao trên máy người nhận
+## 17. Checklist bàn giao trên máy người nhận
 
 Điền theo lượt chạy thực tế, giữ commit, phiên bản image, report/log/resources và ghi rõ mục chưa chạy. Không đưa password hoặc toàn bộ `.env` vào biên bản công khai.
 
@@ -814,7 +871,8 @@ Nếu muốn thu hồi cả image/cache: xem [vòng đời hạ tầng](infra/04
 - [ ] Test-purchase-policy 5 test/sáu fault/cleanup đạt; policy report đã đọc cả `passed` và `eligible`.
 - [ ] Nếu eligible: apply/status theo ID mới, đủ 69.052 visitor, raw score giữ nguyên, nhãn đúng ngưỡng, original pointer giữ nguyên.
 - [ ] Nếu không eligible: ghi lý do/mục tiêu không đạt, giữ original score, đánh dấu apply không thực hiện.
-- [ ] Các bước reuse ở mục 13 được đánh dấu riêng theo bằng chứng; policy apply lần hai cùng ID/count/fingerprint.
+- [ ] Test-stream-ml bảy test/bảy fault/cleanup đạt; replay 1.528 event/1.016 visitor và simulator chín event/ba visitor đạt, batch reconciliation/resource đầy đủ; đánh dấu pending nếu chưa chạy.
+- [ ] Các bước reuse ở mục 14 được đánh dấu riêng theo bằng chứng; policy apply lần hai cùng ID/count/fingerprint và ML streaming completed reuse.
 - [ ] Job có monitor đủ quan sát, không OOM/restart, hai worker/hai replica; không còn remote driver bị bỏ lại.
 - [ ] Biết cách reboot/start, đọc log, resume, `down` giữ volume và reset phá hủy dữ liệu.
 

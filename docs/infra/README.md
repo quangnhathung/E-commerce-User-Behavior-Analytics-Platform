@@ -41,7 +41,7 @@ Tổng cộng **chín service thường trực** và **ba job init**. Trạng th
 - Các thư mục Bronze/Silver/Gold được init chuẩn bị; việc tạo thư mục không đồng nghĩa đã có dữ liệu nghiệp vụ.
 - Topic raw và DLQ được dùng bởi [replay/streaming KPI](../streaming/README.md), có validation, loại trùng và cách ly/DLQ; live suite và demo đã có artifact xác nhận.
 - Smoke test độc lập với ứng dụng; session/funnel có [kiểm thử riêng](../analytics/04-testing.md), feature/K-Means/RF và policy có [tài liệu ML](../ml/README.md).
-- Đã có huấn luyện K-Means/Random Forest và batch score/policy; scoring ML streaming, FastAPI và dashboard sản phẩm thuộc các giai đoạn tiếp theo.
+- Đã có huấn luyện K-Means/Random Forest, batch score/policy và [pipeline ML streaming](../ml/10-streaming-scoring.md) mới chờ nghiệm thu runtime; FastAPI và dashboard sản phẩm thuộc các giai đoạn tiếp theo.
 - Spark UI và HDFS UI là giao diện quản trị kỹ thuật, không phải dashboard phân tích thương mại điện tử.
 
 ## Trạng thái kiểm chứng

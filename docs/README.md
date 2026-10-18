@@ -9,7 +9,7 @@ Tài liệu cho **E-commerce User Behavior Analytics Platform** được tổ ch
 | [Dữ liệu lịch sử](data/README.md) | Data dictionary, hợp đồng sự kiện, Bronze/Silver, chuẩn hóa, loại trùng, quarantine, chất lượng và kiểm thử ingestion. |
 | [Replay và streaming KPI](streaming/README.md) | Producer Kafka, Structured Streaming, KPI MongoDB, checkpoint/retry, DLQ, vận hành demo và nghiệm thu. |
 | [Session và funnel](analytics/README.md) | Phân tích lịch sử và streaming, phiên 30 phút, funnel tổng quan/sản phẩm, snapshot HDFS/MongoDB, vận hành và kiểm thử. |
-| [Machine Learning](ml/README.md) | Feature 7 ngày, K-Means; nhãn 24 giờ, Random Forest, batch scoring/lookup, policy ưu tiên precision, snapshot và nghiệm thu. |
+| [Machine Learning](ml/README.md) | Feature 7 ngày, K-Means; nhãn 24 giờ, RF batch/policy, ML streaming với replay/simulator, snapshot và nghiệm thu. |
 | [Kế hoạch triển khai tổng thể](../IMPLEMENTATION_PLAN.md) | Mục tiêu, luồng dữ liệu, phân tích hành vi, Machine Learning, API/dashboard và các mốc triển khai. |
 
 Bắt đầu từ [hướng dẫn máy mới](GETTING_STARTED.md) để chạy đầy đủ, hoặc [README gốc](../README.md) để xem nhanh. Khi cần giải thích sâu về dựng/vận hành cụm, đọc [mục lục hạ tầng](infra/README.md).

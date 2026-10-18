@@ -1,6 +1,6 @@
 # E-commerce User Behavior Analytics Platform
 
-Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Mã hiện tại gồm hạ tầng Docker, ingestion Retailrocket CSV → Bronze → Silver, replay Kafka, streaming KPI, session/funnel, feature 7 ngày/K-Means và Random Forest dự đoán mua hàng theo batch. Scoring streaming, API và dashboard thuộc các giai đoạn tiếp theo.
+Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Mã hiện tại gồm hạ tầng Docker, ingestion Retailrocket CSV → Bronze → Silver, replay Kafka, streaming KPI, session/funnel, feature 7 ngày/K-Means, Random Forest batch và ML streaming có policy precision. ML streaming mới chờ nghiệm thu trên cụm; API và dashboard thuộc các giai đoạn tiếp theo.
 
 **Developer mới:** dùng [hướng dẫn chạy từ đầu đến policy precision](docs/GETTING_STARTED.md), gồm Ubuntu/Arch, Windows qua WSL2, dataset, cấu hình, từng lệnh, tiêu chí đạt và phục hồi.
 
@@ -56,7 +56,7 @@ make config
 make test
 ```
 
-`make test` chạy 34 test hạ tầng và 161 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Lượt hiện tại có 188 đạt, 7 HTTP skipped vì môi trường cấm tạo socket loopback. Không cần cài PySpark trên host. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
+`make test` chạy 34 test hạ tầng và 187 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Lượt hiện tại có 214 đạt, 7 HTTP skipped vì môi trường cấm tạo socket loopback. Không cần cài PySpark trên host. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
 
 ## Nạp dữ liệu lịch sử
 
@@ -147,6 +147,21 @@ make purchase-policy-status
 ```
 
 Chỉ khi `eligible=true`, chạy `make apply-purchase-policy`; lệnh in ID mới để dùng với `purchase-score-status SCORE_RUN_ID=...`. Không cần build dataset, fit RF hoặc build image lại. Artifact người dùng tạo đã xác nhận 5/5 live test policy, sáu fault scenario, cleanup/monitor đạt; ngưỡng 0,96 có precision test 73,88%, recall 13,64%, `eligible=true`. Apply đủ 69.052 visitor, bốn predicted positive; lần hai `reused=true`, cùng fingerprint, không duplicate. Đây là đánh giá lại ngưỡng trên test đã từng được xem, không phải fresh holdout. Máy mới phải kiểm tra report/eligibility riêng; xem [runbook](docs/GETTING_STARTED.md#policy).
+
+## ML streaming và simulator
+
+Sau khi K-Means, RF và policy eligible đã published, không có driver khác:
+
+```bash
+make test-stream-ml
+make prepare-ml-demo RUN_ID=ml-replay-001
+```
+
+Terminal A chạy `make stream-ml RUN_ID=ml-replay-001`; đợi `STREAM_ML_READY`, terminal B chạy `make replay-ml RUN_ID=ml-replay-001`. Theo dõi bằng `make stream-ml-status RUN_ID=ml-replay-001`. Replay mặc định ngày 18/09/2015 `[00:00,03:00)` UTC có 1.528 event/1.016 visitor; seed chỉ chứa bảy ngày trước START, event mới chỉ tham gia feature sau khi accepted qua Kafka.
+
+Simulator dùng RUN_ID khác: `make prepare-ml-demo RUN_ID=ml-sim-001 DEMO_SOURCE=simulator`, terminal A chạy `stream-ml`, terminal B chạy `make simulate-ml RUN_ID=ml-sim-001` sau READY. Ba visitor mới phát chín event qua ba đợt; mỗi đợt chờ prediction được committed. Score không bắt buộc tăng sau mỗi hành động.
+
+Profile `streaming-ml` khóa model/policy/checksum riêng, giữ nguyên năm archive cũ; không thêm image/service hoặc fit lại model nguồn thật. Đã có 26 test offline mới đạt; live suite/replay/simulator ML nguồn thật còn chờ terminal có quyền Docker. Xem [vận hành, retry và nghiệm thu streaming ML](docs/ml/10-streaming-scoring.md).
 
 ## Dịch vụ và phiên bản
 
