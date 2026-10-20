@@ -28,10 +28,19 @@
       <section class="toolbar" aria-label="Chọn lượt dữ liệu">
         <div class="run-field"><label for="run-select">LƯỢT DỮ LIỆU</label><select id="run-select" disabled><option>Đang tải RUN_ID…</option></select></div>
         <span class="source-badge" id="source-badge">Chưa có nguồn</span>
-        <div class="toolbar-actions"><label class="auto-control"><input type="checkbox" id="auto-refresh" checked><span>Tự cập nhật · 5 giây</span></label><button class="button secondary" id="refresh-button" aria-label="Cập nhật dữ liệu">↻ <span>Cập nhật</span></button></div>
+        <div class="toolbar-actions"><label class="auto-control"><input type="checkbox" id="auto-refresh" checked><span>Tự cập nhật KPI</span></label><button class="button secondary" id="refresh-button" aria-label="Cập nhật dữ liệu">↻ <span>Cập nhật</span></button></div>
       </section>
       <div class="snapshot-bar"><span id="run-range">Thời gian nghiệp vụ sẽ lấy từ run đã chọn.</span><span id="snapshot-label">Chưa có snapshot</span></div>
       <div class="notice error" id="error-banner" role="alert" hidden></div>
+      <section class="panel live-panel" aria-label="Luồng sự kiện trực tiếp">
+        <div class="live-heading"><div><span class="eyebrow">LIVE · FEED MỖI GIÂY</span><h2>Sự kiện đang đi qua hệ thống</h2></div>
+          <div class="live-controls"><label for="live-select">Phiên live</label><select id="live-select" disabled><option>Chưa có phiên</option></select>
+          <label class="auto-control"><input id="follow-live" type="checkbox" checked><span>Theo dõi live</span></label></div></div>
+        <p id="live-status" role="status">Đang tìm phiên live…</p><p class="small-note" id="live-totals"></p>
+        <p class="small-note">Feed hiện event sau Kafka ACK. KPI và dự đoán bên dưới thuộc run/batch Spark đã công bố; khi chuyển lượt sẽ giữ snapshot hoàn chỉnh gần nhất. Thời gian nghiệp vụ của mô phỏng vẫn là năm 2015.</p>
+        <p class="notice info" id="live-gap" hidden>Feed chỉ giữ 2.000 event gần nhất; đã đồng bộ lại phần mới nhất.</p>
+        <details open><summary>Xem event mới nhất · tối đa 50 dòng</summary><div id="live-events" class="live-events"></div></details>
+      </section>
       <form id="time-filter" class="filter-panel" hidden><div><label for="time-start">Biểu đồ từ · ISO 8601</label><input id="time-start" type="text" spellcheck="false" placeholder="2015-09-18T00:00:00.000Z"></div><div><label for="time-end">Đến · không bao gồm</label><input id="time-end" type="text" spellcheck="false" placeholder="2015-09-18T03:00:00.000Z"></div><button class="button secondary" type="submit">Lọc biểu đồ</button><span class="filter-hint">KPI và funnel vẫn tính trên toàn snapshot.</span></form>
       <form id="prediction-filter" class="filter-panel" hidden><div><label for="cluster-filter">Phân khúc</label><select id="cluster-filter"><option value="">Tất cả cluster</option></select></div><div><label for="label-filter">Nhãn theo policy</label><select id="label-filter"><option value="">Tất cả visitor</option><option value="1">Dự đoán mua</option><option value="0">Chưa dự đoán mua</option></select></div><div class="visitor-field"><label for="visitor-input">Tra visitor ID</label><input id="visitor-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="128" placeholder="Ví dụ: 000099000000003"></div><button class="button secondary" type="submit">Áp dụng</button></form>
       <section id="content" aria-live="polite" aria-busy="true"><div class="empty"><div class="empty-symbol">◈</div><h2>Đang kết nối không gian dữ liệu</h2><p>Mở API bằng <code>make api</code>, rồi chọn một lượt replay hoặc simulator.</p></div></section>

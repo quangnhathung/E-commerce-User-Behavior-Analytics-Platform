@@ -1,5 +1,6 @@
 import { APIClient } from "./core.mjs";
 import { empty, renderOverview, renderPredictions, renderPipeline } from "./views.mjs";
+import { LivePanel } from "./live.mjs";
 
 const $ = id => document.getElementById(id);
 const config = window.ECOMMERCE_CONFIG || {};
@@ -166,7 +167,7 @@ document.querySelectorAll("[data-page]").forEach(button => button.addEventListen
   changedContext();
 }));
 
-$("run-select").addEventListener("change", event => { selectRun(event.target.value); changedContext(); });
+$("run-select").addEventListener("change", event => { live?.stopFollowing(); selectRun(event.target.value); changedContext(); });
 $("time-filter").addEventListener("submit", event => {
   event.preventDefault();
   state.filters = { start: $("time-start").value.trim(), end: $("time-end").value.trim() };
@@ -188,12 +189,30 @@ $("auto-refresh").addEventListener("change", schedule);
 document.addEventListener("visibilitychange", () => { if (!document.hidden && $("auto-refresh").checked) refresh(); });
 $("today").textContent = new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "short", year: "numeric" }).format(new Date());
 $("time-filter").hidden = false;
+let live;
+function followSnapshot(session) {
+  if (!$("auto-refresh").checked || !session.snapshot_run_id) return;
+  if (state.runId !== session.snapshot_run_id) {
+    if (!state.runs.some(run => run.run_id === session.snapshot_run_id)) {
+      state.runs.push({ run_id: session.snapshot_run_id, demo_source: "simulator", start: session.start, end: session.end });
+    }
+    selectRun(session.snapshot_run_id);
+    $("run-select").value = state.runId;
+    changedContext();
+  } else if (state.bundle?.batchId !== session.snapshot_batch_id) refresh();
+}
+export function dispose() {
+  clearInterval(state.timer); state.controller?.abort(); live?.stop();
+}
+window.addEventListener?.("pagehide", dispose);
 if (configurationError) {
   error(configurationError);
   install(empty("Kiểm tra địa chỉ API", "Sửa web/config.js theo hướng dẫn rồi tải lại trang."));
 } else if (location.protocol === "file:") {
   error("Hãy mở web/index.html bằng Open with Live Server trong VS Code; không mở trực tiếp bằng file://.");
 } else {
+  live = new LivePanel(client, followSnapshot);
+  live.start();
   schedule();
   refresh();
 }

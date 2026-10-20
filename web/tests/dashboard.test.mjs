@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { APIClient, APIError, escapeHTML, number, table, localApiUrl } from "../core.mjs";
 import { renderOverview, renderPredictions, renderPipeline, lineChart } from "../views.mjs";
+import { feedTable, mergeEvents, LivePanel } from "../live.mjs";
 
 function fixture() {
   const overview = { processed_events: 9, visitors: 3, views: 5, add_to_cart: 2, purchase_events: 2, transactions: 2, buyers: 2, buyer_rate: 2 / 3 };
@@ -22,6 +23,54 @@ function fixture() {
     data: endpoint.startsWith("visitors/") ? prediction : data[endpoint], ...(endpoint === "predictions" ? { next_cursor: null } : {}) });
   return { data, request };
 }
+
+test("live feed is bounded, deduplicated, escaped and uses committed offsets", () => {
+  const session = { completed_segments: 1, active_run_id: "next", processed_offsets: { "0": 3 } };
+  const rows = Array.from({ length: 70 }, (_, sequence) => ({ sequence, event_id: String(sequence), segment_index: 2,
+    run_id: "next", partition: "0", next_offset: sequence + 1, visitor_id: "0001", item_id: "<img>", event_type: "view" }));
+  const merged = mergeEvents(rows, rows, session);
+  assert.equal(merged.length, 50);
+  assert.equal(merged[0].sequence, 69);
+  assert.equal(merged[0].processing_status, "acked");
+  const old = mergeEvents([], [{ ...rows[0], segment_index: 1 }], session);
+  assert.equal(old[0].processing_status, "processed");
+  const committed = mergeEvents([], rows.slice(0, 2), session);
+  assert.ok(committed.every(row => row.processing_status === "processed"));
+  const advanced = mergeEvents(merged, [], { ...session, processed_offsets: { "0": 70 } });
+  assert.ok(advanced.every(row => row.processing_status === "processed"));
+  assert.equal(mergeEvents(merged, rows.slice(0, 1), session, true).length, 1);
+  const html = feedTable(merged);
+  assert.ok(html.includes("0001")); assert.ok(html.includes("&lt;img&gt;")); assert.ok(!html.includes("<img>"));
+});
+
+test("live controller follows snapshots while polling without overlapping requests", async () => {
+  const previous = globalThis.Option;
+  const elements = new Map(["live-select", "follow-live", "live-status", "live-totals", "live-events", "live-gap"].map(id => [id,
+    { value: "", checked: true, events: {}, addEventListener(name, fn) { this.events[name] = fn; }, replaceChildren() {} }]));
+  const doc = { hidden: false, getElementById: id => elements.get(id), addEventListener() {}, removeEventListener() {} };
+  const session = { live_id: "live", status: "running", segment_index: 1, completed_segments: 0, active_run_id: "child",
+    snapshot_run_id: "child", snapshot_batch_id: 1, processed_events: 1, acknowledged_events: 2, processed_offsets: { "0": 1 } };
+  let release, waiting = false, reads = 0;
+  const seen = [];
+  const client = { async get(path) {
+    if (path === "live/sessions") return { data: [session] };
+    reads++;
+    if (waiting) await new Promise(resolve => { release = resolve; });
+    return { session, data: [], next_after: 1 };
+  } };
+  globalThis.Option = class { constructor(label, value) { this.value = value; } };
+  const panel = new LivePanel(client, value => seen.push(value), doc);
+  try {
+    await panel.tick(); assert.equal(seen.length, 1);
+    waiting = true;
+    const pending = panel.tick();
+    await panel.tick(); assert.equal(reads, 2);
+    release(); await pending;
+    panel.stopFollowing(); waiting = false;
+    await panel.tick(); assert.equal(seen.length, 2);
+    doc.hidden = true; await panel.tick(); assert.equal(reads, 3);
+  } finally { panel.stop(); globalThis.Option = previous; }
+});
 
 test("every workspace endpoint pins the committed batch", async () => {
   const client = new APIClient("http://127.0.0.1:8000");
@@ -160,6 +209,7 @@ test("page controller changes run, resets filters and retains the last coherent 
   const nav = ["overview", "predictions", "pipeline"].map(page => { const el = new Element(); el.dataset.page = page; return el; });
   const previous = Object.fromEntries(["document", "window", "location", "Option", "requestAnimationFrame", "fetch"].map(key => [key, globalThis[key]]));
   let fail = false;
+  let app;
   const requests = [];
   const wait = async predicate => {
     for (let i = 0; i < 100; i++) { if (predicate()) return; await new Promise(resolve => setTimeout(resolve, 5)); }
@@ -176,6 +226,7 @@ test("page controller changes run, resets filters and retains the last coherent 
       if (fail) throw new TypeError("offline");
       const endpoint = url.pathname.split("/api/v1/")[1];
       requests.push([endpoint, Object.fromEntries(url.searchParams)]);
+      if (endpoint === "live/sessions") return { ok: true, json: async () => ({ data: [] }) };
       if (endpoint === "runs") return { ok: true, json: async () => ({ data: ["demo", "second"].map(run_id => ({ run_id, demo_source: "simulator",
         start: "2015-09-18T00:00:00.000Z", end: "2015-09-18T03:00:00.000Z" })) }) };
       const data = fixture().request(endpoint);
@@ -183,7 +234,7 @@ test("page controller changes run, resets filters and retains the last coherent 
       if (endpoint === "overview" && data.run_id === "second") data.data.processed_events = 12;
       return { ok: true, json: async () => data };
     };
-    await import(`../app.js?controller-test`);
+    app = await import(`../app.js?controller-test`);
     await wait(() => elements.get("content").html.includes("Nhịp tương tác"));
     nav[1].emit("click");
     await wait(() => elements.get("content").html.includes("fresh_holdout=false"));
@@ -204,6 +255,7 @@ test("page controller changes run, resets filters and retains the last coherent 
     await wait(() => elements.get("error-banner").textContent.includes("snapshot hoàn chỉnh"));
     assert.equal(elements.get("content").html, committed);
   } finally {
+    app?.dispose();
     for (const [key, value] of Object.entries(previous)) { if (value === undefined) delete globalThis[key]; else globalThis[key] = value; }
   }
 });

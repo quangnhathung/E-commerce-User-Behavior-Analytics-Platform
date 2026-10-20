@@ -12,6 +12,14 @@
   color:var(--ink);
   font-synthesis:none;
 }
+.live-panel { margin:16px 0; border-top:3px solid var(--green); }
+.live-heading { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; }
+.live-heading h2 { margin:8px 0; }
+.live-controls { display:flex; align-items:center; gap:12px; flex-wrap:wrap; max-width:100%; }
+.live-controls select { max-width:100%; min-width:150px; padding:8px; border:1px solid var(--line); border-radius:6px; background:white; color:var(--ink); }
+.live-events { max-height:360px; overflow:auto; margin-top:12px; }
+#live-status { color:var(--green); overflow-wrap:anywhere; }
+#live-totals { color:var(--ink); font-size:17px; font-weight:600; }
 * {
   box-sizing:border-box;
 }
