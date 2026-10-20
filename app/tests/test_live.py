@@ -153,3 +153,94 @@ class LiveStoreTests(unittest.TestCase):
             emit(config,events(config),self.store,"owner",stopping=lambda:False,
                  make_producer=mock.Mock,send=send,sleep=sleep)
         sleep.assert_called_once();send.assert_not_called();self.store.ack.assert_not_called()
+
+
+class LiveProducerPacingTests(unittest.TestCase):
+    def setUp(self):
+        self.now = 0.0
+        self.wake_delay = 0.0
+        self.waits = []
+        self.sent = []
+        self.client = mock.Mock()
+        self.store = mock.Mock()
+        self.store.load.return_value = {"producer": {
+            "status": "running", "last_seq": -1, "end_offsets": {"0": 0}}}
+        self.store.status.return_value = {"consumer": {"status": "running"}, "backlog": 0}
+        self.source = [{"visitor_id": str(index)} for index in range(2)]
+
+    def sleep(self, seconds):
+        if seconds < 0:
+            raise ValueError("sleep length must be non-negative")
+        self.waits.append(seconds)
+        self.now += seconds + self.wake_delay
+
+    def send(self, client, topic, key, payload):
+        self.sent.append((self.now, json.loads(payload)))
+        return "0", len(self.sent)
+
+    def emit(self, *, rate=5, stopping=lambda: False):
+        emit({"run_id": "pacing-test", "topic": "raw", "rate": rate}, self.source,
+             self.store, "owner", stopping=stopping, clock=lambda: self.now,
+             sleep=self.sleep, make_producer=lambda: self.client, send=self.send)
+
+    def test_deadline_crossed_while_checking_stop_never_sleeps_negative(self):
+        def status(config):
+            if self.sent:
+                self.now = .2 - .000001  # Metadata lookup returns just before the next send.
+            return {"consumer": {"status": "running"}, "backlog": 0}
+
+        def stopping():
+            if self.now > .19:
+                self.now += .000002  # Control lookup crosses the deadline.
+            return False
+
+        self.store.status.side_effect = status
+        self.emit(stopping=stopping)
+        self.assertEqual(["0", "1"], [value["visitor_id"] for _, value in self.sent])
+        self.assertEqual([], self.waits)
+        self.assertEqual(2, self.store.ack.call_count)
+        self.assertEqual("completed", self.store.producer_progress.call_args.args[2])
+        self.client.flush.assert_called_once_with(10)
+
+    def test_deadline_equality_does_not_sleep(self):
+        def status(config):
+            if self.sent:
+                self.now = .2
+            return {"consumer": {"status": "running"}, "backlog": 0}
+
+        self.store.status.side_effect = status
+        self.emit()
+        self.assertEqual([0, .2], [at for at, _ in self.sent])
+        self.assertEqual([], self.waits)
+
+    def test_supported_rates_and_late_wakeups_preserve_order_and_acks(self):
+        for rate in (1, 5, 10):
+            for wake_delay in (0, .35):
+                with self.subTest(rate=rate, wake_delay=wake_delay):
+                    self.setUp()
+                    self.source = [{"visitor_id": str(index)} for index in range(4)]
+                    self.wake_delay = wake_delay
+                    self.emit(rate=rate)
+                    self.assertEqual(["0", "1", "2", "3"], [v["visitor_id"] for _, v in self.sent])
+                    self.assertTrue(self.waits)
+                    self.assertTrue(all(0 < seconds <= .1 for seconds in self.waits))
+                    self.assertEqual([0, 1, 2, 3], [call.args[2] for call in self.store.ack.call_args_list])
+                    if wake_delay == 0:
+                        for index, (at, _) in enumerate(self.sent):
+                            self.assertAlmostEqual(index / rate, at)
+                    self.assertEqual("completed", self.store.producer_progress.call_args.args[2])
+                    self.client.flush.assert_called_once_with(10)
+
+    def test_stop_during_wait_retains_ack_cursor_and_resume_skips_it(self):
+        self.emit(stopping=lambda: bool(self.waits))
+        cursor = {"last_seq": 0, "end_offsets": {"0": 1}}
+        self.assertEqual(["0"], [value["visitor_id"] for _, value in self.sent])
+        self.assertEqual((cursor, "paused"), self.store.producer_progress.call_args.args[1:])
+        self.assertEqual(1, self.store.ack.call_count)
+        self.client.flush.assert_called_once_with(10)
+
+        self.store.load.return_value = {"producer": {**cursor, "status": "paused"}}
+        self.emit()
+        self.assertEqual(["0", "1"], [value["visitor_id"] for _, value in self.sent])
+        self.assertEqual([0, 1], [call.args[2] for call in self.store.ack.call_args_list])
+        self.assertEqual("completed", self.store.producer_progress.call_args.args[2])

@@ -31,11 +31,15 @@ def emit(config, source, store, owner, *, stopping, clock=time.monotonic, sleep=
                 if clock() - wait_started > 180:
                     raise TimeoutError("Live backlog did not drain within 180 seconds")
                 sleep(.2)
-            while clock() < deadline:
+            while True:
                 if stopping():
                     store.producer_progress(config, cursor, "paused")
                     return
-                sleep(min(.1, deadline - clock()))
+                # A stop lookup can cross the deadline; sample remaining time once.
+                remaining = deadline - clock()
+                if remaining <= 0:
+                    break
+                sleep(min(.1, remaining))
             value = {**source[seq], "run_id": config["run_id"], "emitted_at": utc_now()}
             partition, offset = send(client, config["topic"], value["visitor_id"], canonical_json(value).encode())
             cursor = {"last_seq": seq, "end_offsets": {**cursor["end_offsets"], partition: offset}}
