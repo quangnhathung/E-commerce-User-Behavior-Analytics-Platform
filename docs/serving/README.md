@@ -30,8 +30,9 @@ API: <http://127.0.0.1:8000/docs>. Health: <http://127.0.0.1:8000/api/v1/health>
 ## Trạng thái ngày 20/10/2026
 
 - Pipeline streaming ML trước đó đã có artifact xác nhận: 7/7 test tích hợp, replay 1.528 event/1.016 visitor, simulator 9 event/3 visitor và hai lượt replay reuse giữ nguyên fingerprint.
-- Serving mới: **19 test HTTP API offline**, **12 test JavaScript** và **4 test host mới** đã đạt. `make test` có 38 test hạ tầng + 187 ứng dụng, 7 HTTP skipped trong sandbox.
+- Serving mới: **19 test HTTP API offline**, **13 test JavaScript** và **4 test host mới** đã đạt. Test JavaScript có hồi quy cho ngữ cảnh gọi native `fetch` trên browser. `make test` có 38 test hạ tầng + 187 ứng dụng, 7 HTTP skipped trong sandbox.
 - Test API dùng FastAPI/Pydantic/Starlette đã khóa phiên bản, database adapter nhỏ; chưa thay thế truy vấn MongoDB thật. Phiên kiểm thử local dùng Python 3.12 và polling heartbeat trong test runner để khắc phục giới hạn đánh thức event loop của sandbox; app production không có shim này.
-- DNS, Docker socket và socket Chrome bị giới hạn trong phiên công cụ. Cài venv hoàn chỉnh với PyMongo, test MongoDB thật, browser Live Server và smoke API trên dữ liệu thật **chưa nghiệm thu**. Không có report live serving giả hoặc số đo RAM/latency serving được suy ra từ lượt streaming cũ.
+- Lượt kiểm tra tiếp theo bằng Chrome headless qua Live Server và API/MongoDB đang chạy đã đạt: ba màn hình với cả `ml-sim-001` và `ml-replay-001`, KPI thật, tra visitor có zero đầu, đổi run/reset filter, Cập nhật và tự cập nhật. Lỗi `Illegal invocation` của native `fetch` đã được sửa. Bằng chứng tại `artifacts/serving/fetch-browser-check.json` trên máy kiểm tra.
+- Bộ test HTTP với fixture MongoDB thật, smoke đối chiếu fingerprint/đo latency, nghiệm thu layout desktop/mobile và số đo RAM API vẫn **chưa nghiệm thu** trong lượt sửa lỗi này. Kiểm tra browser trên run đã hoàn tất chưa xác nhận cập nhật khi pipeline tiến batch mới.
 
 Scope v1 chỉ đọc run `stream-ml-v1` nghiệp vụ ở base `/ecommerce`. Batch lịch sử và các run KPI v2 chưa nằm trong bộ chọn. Metrics huấn luyện của model gắn với run vẫn được hiển thị riêng.

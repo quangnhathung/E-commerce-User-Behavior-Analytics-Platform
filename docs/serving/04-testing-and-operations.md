@@ -11,7 +11,7 @@ make test-api-offline
 ```
 
 - `make test`: hồi quy hạ tầng/app; không cần dependency serving. Lượt đã kiểm có 38 + 187 test, 7 HTTP skipped do sandbox.
-- `test-web`: 12 test Node cho client, snapshot pinning, đổi run/filter, phân trang, visitor leading zero, error recovery, escape và render ba màn hình. DOM adapter nhỏ kiểm tra controller; không thay cho kiểm tra layout trong browser.
+- `test-web`: 13 test Node cho client, ngữ cảnh gọi native `fetch`, snapshot pinning, đổi run/filter, phân trang, visitor leading zero, error recovery, escape và render ba màn hình. DOM adapter nhỏ kiểm tra controller; không thay cho kiểm tra layout trong browser.
 - `test-api-offline`: 19 test FastAPI HTTP với database adapter, cần `make api-setup` trước. Không kết nối MongoDB.
 
 Test API gồm: run list ẩn namespace test, config/published snapshot, batch tương lai, pointer tiến, cursor ràng buộc filter/batch, leading zero, CORS Live Server, thời gian có múi giờ, missing prediction/funnel product, pinned model, empty cluster và error redaction.
@@ -51,7 +51,7 @@ Report/log: `artifacts/serving/smoke-web-<RUN_ID>.json/.log`. Đây là số đo
 - Đổi run: không giữ visitor/filter/page từ run trước.
 - Không diễn giải precision lịch sử thành precision của run mới hoặc score thành phần trăm xác suất mua.
 
-Phiên công cụ chưa chạy được Chrome do `setsockopt: Operation not permitted`, chưa cài được venv mới do DNS và chưa truy cập Docker socket. Do đó browser, test Mongo thật, smoke API và RAM của API host đang để pending. Các test đã đạt được nêu riêng trong [trạng thái](README.md).
+Ngày 20/10/2026, sau khi sửa ngữ cảnh gọi native `fetch`, Chrome headless đã kiểm tra thành công cả ba màn hình qua Live Server với API/MongoDB đang chạy: simulator 9 event/3 visitor, replay 1.528 event/1.016 visitor, tra visitor có zero đầu, đổi run/reset filter, Cập nhật và tự cập nhật. Report tại `artifacts/serving/fetch-browser-check.json`. Đây là kiểm tra chức năng browser trên hai run đã hoàn tất; chưa nghiệm thu layout desktop/mobile, pipeline tiến batch mới, mất/kết nối lại API, bộ test fixture MongoDB, smoke fingerprint/latency hoặc RAM API host. Các test đã đạt được nêu riêng trong [trạng thái](README.md).
 
 ## Lỗi và phục hồi
 
