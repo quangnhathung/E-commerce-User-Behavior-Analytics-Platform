@@ -35,3 +35,7 @@ tune-purchase-policy apply-purchase-policy purchase-policy-status test-purchase-
 .PHONY: prepare-ml-demo stream-ml replay-ml simulate-ml stream-ml-status test-stream-ml
 prepare-ml-demo stream-ml replay-ml simulate-ml stream-ml-status test-stream-ml:
 	@$(PYTHON) app/streaming_ml_manage.py $@
+
+.PHONY: api-setup api api-indexes test-api test-api-offline test-web smoke-web
+api-setup api api-indexes test-api test-api-offline test-web smoke-web:
+	@$(PYTHON) services/manage.py $@
