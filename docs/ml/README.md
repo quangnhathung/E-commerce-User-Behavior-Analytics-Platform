@@ -2,7 +2,7 @@
 
 [← Tài liệu dự án](../README.md)
 
-Phần ML chuyển Silver lịch sử thành tám đặc trưng hành vi, phân nhóm visitor bằng K-Means và dự đoán việc mua trong 24 giờ bằng Random Forest. Kết quả có model version, snapshot HDFS, metadata/lookup MongoDB và kiểm tra khi chạy lại. Đã có RF batch/policy và pipeline ML streaming mới dùng model đã công bố, có replay/simulator; streaming ML còn chờ nghiệm thu runtime. API/dashboard thuộc giai đoạn tiếp theo.
+Phần ML chuyển Silver lịch sử thành tám đặc trưng hành vi, phân nhóm visitor bằng K-Means và dự đoán việc mua trong 24 giờ bằng Random Forest. Kết quả có model version, snapshot HDFS, metadata/lookup MongoDB và kiểm tra khi chạy lại. RF batch/policy và ML streaming đã có artifact runtime; live suite, replay, simulator và completed reuse ML đã đạt. [API/dashboard local](../serving/README.md) đọc snapshot ML, có test offline và còn chờ nghiệm thu serving thật.
 
 | Tài liệu | Nội dung |
 | --- | --- |

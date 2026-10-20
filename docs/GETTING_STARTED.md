@@ -2,9 +2,9 @@
 
 [← Mục lục tài liệu](README.md) · [README dự án](../README.md)
 
-Tài liệu này dành cho developer nhận repository và tự chạy từ đầu: cài công cụ, chuẩn bị Retailrocket, dựng Docker Compose, ingest, phân tích lịch sử/streaming, K-Means, Random Forest, policy precision và ML streaming có simulator. Không cần `.env`, model, volume hoặc thư mục `artifacts/` của người bàn giao.
+Tài liệu này dành cho developer nhận repository và tự chạy từ đầu: cài công cụ, chuẩn bị Retailrocket, dựng Docker Compose, ingest, phân tích lịch sử/streaming, K-Means, Random Forest, policy precision, ML streaming có simulator và dashboard HTML/CSS/JS qua Live Server. Không cần `.env`, model, volume hoặc thư mục `artifacts/` của người bàn giao.
 
-Đối chiếu mã nguồn và artifact đến **18/10/2026**. Pipeline ML streaming mới có offline test, còn chờ nghiệm thu runtime; các phần batch/v2 có bằng chứng được nêu riêng. Các lệnh ứng dụng bên dưới chạy trong **Bash trên Linux hoặc Ubuntu WSL2**, tại thư mục gốc repository. Các khối PowerShell chỉ dùng để chuẩn bị Windows. Chạy từng giai đoạn và kiểm tra kết quả trước khi chuyển bước.
+Đối chiếu mã nguồn và artifact đến **20/10/2026**. Pipeline ML streaming đã nghiệm thu live suite/replay/simulator/completed reuse qua artifact; API/dashboard mới có test offline, còn chờ serving trên Mongo/browser thật. Các lệnh ứng dụng bên dưới chạy trong **Bash trên Linux hoặc Ubuntu WSL2**, tại thư mục gốc repository. Các khối PowerShell chỉ dùng để chuẩn bị Windows. Chạy từng giai đoạn và kiểm tra kết quả trước khi chuyển bước.
 
 ## Mục lục
 
@@ -20,6 +20,7 @@ Tài liệu này dành cho developer nhận repository và tự chạy từ đ�
 10. [Random Forest và batch scoring](#prediction)
 11. [Policy precision và score mới](#policy)
 12. [ML streaming: replay và simulator](#streaming-ml)
+    - [API local và dashboard Live Server](#serving)
 13. [Đọc artifact, selector và theo dõi](#artifacts)
 14. [Nghiệm thu chạy lại](#reuse)
 15. [Khởi động lại, ngắt job và xử lý lỗi](#recovery)
@@ -67,7 +68,7 @@ flowchart LR
 | MongoDB | Giữ kết quả đã công bố, metadata và lookup theo visitor/sản phẩm. |
 | Make và Python CLI | Kiểm tra điều kiện, điều phối job, khóa driver, ghi log và report. |
 
-Đã có ingestion, KPI streaming, session/funnel lịch sử và streaming, K-Means lịch sử, RF batch/policy và pipeline **ML streaming mới chờ nghiệm thu runtime**. **FastAPI và dashboard sản phẩm chưa triển khai**. Spark/HDFS UI là giao diện vận hành. Retailrocket không có giá/doanh thu hoặc bước bắt đầu thanh toán; funnel hiện tại là **xem → thêm giỏ → mua**. Hai worker/DataNode cùng một máy không bảo vệ khi cả máy hoặc ổ đĩa hỏng.
+Đã có ingestion, KPI streaming, session/funnel lịch sử và streaming, K-Means lịch sử, RF batch/policy và **ML streaming đã có artifact nghiệm thu**. **FastAPI host và dashboard HTML/CSS/JS qua Live Server** đã có mã/test offline, còn chờ serving thật. Spark/HDFS UI là giao diện vận hành. Retailrocket không có giá/doanh thu hoặc bước bắt đầu thanh toán; funnel hiện tại là **xem → thêm giỏ → mua**. Hai worker/DataNode cùng một máy không bảo vệ khi cả máy hoặc ổ đĩa hỏng.
 
 Các nhánh phụ thuộc như sau; thứ tự trong tài liệu là một lộ trình chạy đầy đủ:
 
@@ -337,7 +338,7 @@ Không tạo lại `.env` khi volume đang giữ dữ liệu. Đổi password tr
 make test
 ```
 
-Bộ hiện tại có 34 test hạ tầng và 187 test ứng dụng. Trên máy bình thường kỳ vọng các suite kết thúc `OK`, không failure/error. Một phiên kiểm tra trong sandbox có 214 đạt, 7 HTTP skipped vì cấm loopback socket; đó là giới hạn của phiên ấy, **không phải số skip bắt buộc trên máy mới**. Test offline không chứng minh Spark/HDFS/Mongo/Kafka thực sự hoạt động. Nếu lỗi thiếu Compose/Bash/curl, sửa công cụ host rồi chạy lại.
+Bộ hiện tại có 38 test hạ tầng và 187 test ứng dụng. Trên máy bình thường kỳ vọng các suite kết thúc `OK`, không failure/error. Một phiên kiểm tra trong sandbox có 218 đạt, 7 HTTP skipped vì cấm loopback socket; đó là giới hạn của phiên ấy, **không phải số skip bắt buộc trên máy mới**. Serving có thêm 19 test API offline và 12 test JS qua các lệnh riêng. Test offline không chứng minh Spark/HDFS/Mongo/Kafka thực sự hoạt động. Nếu lỗi thiếu Compose/Bash/curl, sửa công cụ host rồi chạy lại.
 
 ### 6.2. Build image lần đầu
 
@@ -624,7 +625,7 @@ make test-stream-ml
 make prepare-ml-demo RUN_ID=ml-replay-001
 ```
 
-Suite phải đạt bảy test, bảy fault scenario, cleanup và resource acceptance. Artifact hiện tại mới xác nhận offline; live suite cần chạy trên máy bạn. Prepare khóa model/policy từ latest pointer và seed bảy ngày **trước START**, không dùng phần replay chưa qua Kafka để tính feature.
+Suite phải đạt bảy test, bảy fault scenario, cleanup và resource acceptance. Artifact bàn giao đã xác nhận các tiêu chí này; máy mới cần chạy lại để nghiệm thu riêng. Prepare khóa model/policy từ latest pointer và seed bảy ngày **trước START**, không dùng phần replay chưa qua Kafka để tính feature.
 
 Replay ML mặc định ngày **18/09/2015 `[00:00,03:00)` UTC**, 10 event/giây, có 1.528 event và 1.016 visitor. Ngày bắt đầu đã nằm sau cửa sổ nhãn test của policy hiện có; không dùng mặc định v2 ngày 10/09 cho policy này. Cửa sổ demo tối đa 24 giờ/10.000 event.
 
@@ -658,6 +659,21 @@ make stream-ml-status RUN_ID=ml-sim-001 VISITOR_ID=000099000000003
 ```
 
 Đạt khi đủ ba visitor/chín event, feature cập nhật ba đợt, final snapshot được đối soát và monitor đạt. Không ép score/label phải tăng. Các run mới nằm ở `artifacts/streaming-ml/`; không thay các pointer batch gốc. Retry cùng RUN_ID/mã/config, giữ seed/checkpoint; muốn đổi model hoặc nguồn thì prepare RUN_ID mới. Chi tiết field, selector, timeout, fault và cleanup: [ML streaming](ml/10-streaming-scoring.md).
+
+<a id="serving"></a>
+## 12A. API local và dashboard Live Server
+
+Cần run ML đã chuẩn bị và MongoDB đang chạy. API dùng Python 3.11+ trên host; frontend không cần npm hoặc build image:
+
+```bash
+make api-setup
+make api-indexes
+make api
+```
+
+Giữ terminal API chạy. Trong VS Code, mở `web/index.html` → **Open with Live Server**. API mặc định `http://127.0.0.1:8000`, dashboard chọn RUN_ID và tự cập nhật mỗi 5 giây. Ba màn hình: tổng quan/funnel, phân khúc/prediction và pipeline. API lấy application credentials từ `.env`; không đưa mật khẩu vào file JS.
+
+Muốn xem cập nhật mới, prepare một RUN_ID simulator mới rồi chạy consumer/producer ở các terminal khác như mục 12. API/Live Server chạy cùng streaming được; các Spark job vẫn chạy tuần tự. Kiểm tra bằng `make test-api`, `make test-web` và `make smoke-web RUN_ID=<run-completed>`; Node chỉ dùng cho test JS. Hướng dẫn chi tiết, đổi cổng, test offline và cleanup: [docs/serving/](serving/README.md).
 
 <a id="artifacts"></a>
 ## 13. Đọc artifact, selector và theo dõi

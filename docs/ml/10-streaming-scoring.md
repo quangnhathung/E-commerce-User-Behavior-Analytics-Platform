@@ -6,9 +6,9 @@
 
 Pipeline mới đưa event Kafka qua validation/dedup, KPI/session/funnel, feature bảy ngày, K-Means, Random Forest và policy precision. Kết quả được lưu thành snapshot HDFS và công bố vào MongoDB để CLI tra cứu. Model không được fit lại khi streaming; không cần thêm service, dependency, image hoặc tăng ngân sách khoảng 7 GiB.
 
-Ngày **18/10/2026**, đã triển khai hợp đồng `stream-ml-v1`, profile ZIP `streaming-ml`, CLI, simulator và kiểm thử. **26 test offline mới đạt**; năm archive cũ giữ nguyên checksum. Bộ hồi quy có 34 test hạ tầng + 187 test ứng dụng, 7 HTTP skipped trong phiên bị giới hạn socket. `make config` đạt. **Live suite và replay/simulator ML nguồn thật chưa có bằng chứng nghiệm thu**: phiên công cụ không truy cập được Docker socket. Các số và điều kiện trong phần nghiệm thu dưới đây là tiêu chí phải kiểm khi chạy, không phải kết quả runtime đã đạt.
+Ngày **18/10/2026**, đã triển khai hợp đồng `stream-ml-v1`, profile ZIP `streaming-ml`, CLI, simulator và kiểm thử. **26 test offline mới đạt**; năm archive cũ giữ nguyên checksum. Artifact người dùng đã chạy được đối chiếu: **7/7 live test, 7 fault scenario, cleanup/hai replica/monitor đạt**; `ml-replay-001` xử lý 1.528 event/1.016 visitor, `ml-sim-001` đủ 9 event/3 visitor và ba phase committed. Hai lượt replay completed reuse giữ nguyên scoring/count/checkpoint. P95 replay 41,888 giây, simulator 28,303 giây; resource observations đầy đủ, không OOM/restart. Đây là xác minh artifact/log, không phải truy vấn mới Docker trong phiên bị giới hạn socket.
 
-Giai đoạn này chưa thêm API/dashboard. Policy hiện có từng đạt precision test 73,88% và recall 13,64%, nhưng đó là reassessment trên test đã xem; không suy ra precision mới cho streaming khi chưa có nhãn tương lai đầy đủ. `purchase_score` chưa hiệu chuẩn, không diễn giải thành phần trăm xác suất mua.
+Lớp [API/dashboard local](../serving/README.md) được triển khai riêng ngày 20/10, không thay archive/model/checkpoint. Policy hiện có từng đạt precision test 73,88% và recall 13,64%, nhưng đó là reassessment trên test đã xem; không suy ra precision mới cho streaming khi chưa có nhãn tương lai đầy đủ. `purchase_score` chưa hiệu chuẩn, không diễn giải thành phần trăm xác suất mua.
 
 ## Điều kiện và phiên bản được khóa
 

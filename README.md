@@ -1,8 +1,8 @@
 # E-commerce User Behavior Analytics Platform
 
-Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Mã hiện tại gồm hạ tầng Docker, ingestion Retailrocket CSV → Bronze → Silver, replay Kafka, streaming KPI, session/funnel, feature 7 ngày/K-Means, Random Forest batch và ML streaming có policy precision. ML streaming mới chờ nghiệm thu trên cụm; API và dashboard thuộc các giai đoạn tiếp theo.
+Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Mã hiện tại gồm hạ tầng Docker, ingestion Retailrocket CSV → Bronze → Silver, replay Kafka, streaming KPI, session/funnel, feature 7 ngày/K-Means, Random Forest batch và ML streaming có policy precision. ML streaming đã có artifact nghiệm thu; lớp FastAPI chạy trên host và dashboard HTML/CSS/JS mở bằng Live Server đã được thêm, còn chờ nghiệm thu serving trên cụm thật.
 
-**Developer mới:** dùng [hướng dẫn chạy từ đầu đến policy precision](docs/GETTING_STARTED.md), gồm Ubuntu/Arch, Windows qua WSL2, dataset, cấu hình, từng lệnh, tiêu chí đạt và phục hồi.
+**Developer mới:** dùng [hướng dẫn chạy từ đầu đến dashboard](docs/GETTING_STARTED.md), gồm Ubuntu/Arch, Windows qua WSL2, dataset, cấu hình, từng lệnh, tiêu chí đạt và phục hồi.
 
 Kế hoạch sản phẩm đầy đủ: [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
 
@@ -56,7 +56,7 @@ make config
 make test
 ```
 
-`make test` chạy 34 test hạ tầng và 187 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Lượt hiện tại có 214 đạt, 7 HTTP skipped vì môi trường cấm tạo socket loopback. Không cần cài PySpark trên host. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
+`make test` chạy 38 test hạ tầng và 187 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Lượt hiện tại có 218 đạt, 7 HTTP skipped vì môi trường cấm tạo socket loopback. Serving có thêm 19 test API offline và 12 test JavaScript riêng. Không cần cài PySpark trên host. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
 
 ## Nạp dữ liệu lịch sử
 
@@ -161,7 +161,23 @@ Terminal A chạy `make stream-ml RUN_ID=ml-replay-001`; đợi `STREAM_ML_READY
 
 Simulator dùng RUN_ID khác: `make prepare-ml-demo RUN_ID=ml-sim-001 DEMO_SOURCE=simulator`, terminal A chạy `stream-ml`, terminal B chạy `make simulate-ml RUN_ID=ml-sim-001` sau READY. Ba visitor mới phát chín event qua ba đợt; mỗi đợt chờ prediction được committed. Score không bắt buộc tăng sau mỗi hành động.
 
-Profile `streaming-ml` khóa model/policy/checksum riêng, giữ nguyên năm archive cũ; không thêm image/service hoặc fit lại model nguồn thật. Đã có 26 test offline mới đạt; live suite/replay/simulator ML nguồn thật còn chờ terminal có quyền Docker. Xem [vận hành, retry và nghiệm thu streaming ML](docs/ml/10-streaming-scoring.md).
+Profile `streaming-ml` khóa model/policy/checksum riêng, giữ nguyên năm archive cũ; không thêm image/service hoặc fit lại model nguồn thật. Artifact đã xác nhận 7/7 live test, replay 1.528 event/1.016 visitor, simulator 9 event/3 visitor và hai lượt completed reuse giữ nguyên fingerprint. Replay p95 41,888 giây; simulator 28,303 giây. Xem [vận hành, retry và nghiệm thu streaming ML](docs/ml/10-streaming-scoring.md).
+
+## Dashboard HTML/CSS/JS và API local
+
+Sau khi đã có run ML, từ root (API cần Python 3.11+):
+
+```bash
+make api-setup
+make api-indexes
+make api
+```
+
+Giữ terminal API hoạt động. Mở `web/index.html` trong VS Code → **Open with Live Server**. Chọn RUN_ID để xem tổng quan/funnel, phân khúc/prediction hoặc pipeline. Trang tự cập nhật mỗi năm giây và khóa cùng snapshot giữa các request.
+
+Frontend dùng HTML/CSS/JS và SVG thuần; không cần Node/npm để chạy. FastAPI bind `127.0.0.1:8000`, đọc MongoDB qua cổng host hiện có. Virtualenv riêng ở `services/.venv/`; không thêm container/image hoặc thay Compose. Tài liệu cài đặt, API, source guide, test và xử lý lỗi: [docs/serving/](docs/serving/README.md).
+
+`make test-web` chạy 12 test JS (cần Node 18+); `make test-api-offline` chạy 19 test HTTP offline. `make test-api` chạy thêm 19 case Mongo thật; `make smoke-web RUN_ID=...` đối chiếu API với một run đã hoàn tất. Live serving/browser đang chờ nghiệm thu do phiên công cụ bị giới hạn DNS/Docker/socket Chrome.
 
 ## Dịch vụ và phiên bản
 
