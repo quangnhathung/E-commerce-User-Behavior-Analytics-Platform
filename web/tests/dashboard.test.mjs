@@ -76,6 +76,32 @@ test("pending run makes no unpinned business queries", async () => {
   assert.equal(calls, 1);
 });
 
+test("default and injected browser fetch receive the global context", async () => {
+  const previous = globalThis.fetch;
+  const calls = [];
+  // Native Window.fetch rejects an APIClient receiver with Illegal invocation.
+  function browserFetch(url, options) {
+    if (this !== globalThis) throw new TypeError("Illegal invocation");
+    calls.push({ url, options });
+    return Promise.resolve({ ok: true, json: async () => ({ status: "ready" }) });
+  }
+  try {
+    globalThis.fetch = browserFetch;
+    for (const client of [new APIClient("http://localhost:8000"), new APIClient("http://localhost:8000", browserFetch)]) {
+      assert.deepEqual(await client.get("health"), { status: "ready" });
+    }
+    assert.equal(calls.length, 2);
+    for (const { url, options } of calls) {
+      assert.equal(url.href, "http://localhost:8000/api/v1/health");
+      assert.equal(options.credentials, "omit");
+      assert.equal(options.cache, "no-store");
+      assert.ok(options.signal instanceof AbortSignal);
+    }
+  } finally {
+    globalThis.fetch = previous;
+  }
+});
+
 test("network and HTTP errors stay actionable", async () => {
   const client = new APIClient("http://localhost:8000", async () => { throw new TypeError("network"); });
   await assert.rejects(client.get("health"), /make api/);

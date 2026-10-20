@@ -15,7 +15,11 @@ export function localApiUrl(value) {
 }
 
 export class APIClient {
-  constructor(baseUrl, fetcher = globalThis.fetch) { this.baseUrl = localApiUrl(baseUrl); this.fetcher = fetcher; }
+  constructor(baseUrl, fetcher = globalThis.fetch) {
+    this.baseUrl = localApiUrl(baseUrl);
+    // Native browser fetch requires the Window/Worker global as its receiver.
+    this.fetcher = fetcher.bind(globalThis);
+  }
 
   async get(endpoint, params = {}, signal) {
     const url = new URL(`${this.baseUrl}/api/v1/${endpoint}`);
