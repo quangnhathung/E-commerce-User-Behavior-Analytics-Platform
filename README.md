@@ -1,8 +1,10 @@
 # E-commerce User Behavior Analytics Platform
 
-Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Mã hiện tại gồm hạ tầng Docker, ingestion Retailrocket CSV → Bronze → Silver, replay Kafka, streaming KPI, session/funnel, feature 7 ngày/K-Means, Random Forest batch và ML streaming có policy precision. ML streaming đã có artifact nghiệm thu; lớp FastAPI chạy trên host và dashboard HTML/CSS/JS mở bằng Live Server đã được thêm, còn chờ nghiệm thu serving trên cụm thật.
+Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Mã hiện tại gồm hạ tầng Docker, ingestion Retailrocket CSV → Bronze → Silver, replay Kafka, streaming KPI, session/funnel, feature 7 ngày/K-Means, Random Forest batch và ML streaming có policy precision. FastAPI chạy trên host, dashboard HTML/CSS/JS mở bằng Live Server; đã đọc được kết quả thật và có nghiệm thu live hữu hạn hai lượt. Trạng thái kiểm thử và giới hạn live liên tục ở [serving](docs/serving/README.md).
 
 **Developer mới:** dùng [hướng dẫn chạy từ đầu đến dashboard](docs/GETTING_STARTED.md), gồm Ubuntu/Arch, Windows qua WSL2, dataset, cấu hình, từng lệnh, tiêu chí đạt và phục hồi.
+
+**Người sử dụng ứng dụng:** dùng [hướng dẫn thao tác web và đọc kết quả](docs/serving/06-web-user-guide.md), gồm lựa chọn phiên/run/batch, feed, KPI/funnel, phân cụm, dự đoán mua hàng, pipeline và bài thực hành.
 
 Kế hoạch sản phẩm đầy đủ: [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
 
@@ -14,7 +16,7 @@ Machine Learning: [docs/ml/README.md](docs/ml/README.md).
 
 - Linux `amd64`, CPU hỗ trợ AVX, tối thiểu bốn CPU logic cho Docker.
 - Docker Engine đang chạy, Docker Compose hỗ trợ `up --wait` và plugin Docker Buildx cho BuildKit cache. Trên Arch Linux: `sudo pacman -S docker-buildx`.
-- Python 3.10+ và GNU Make trên máy chủ. Job trong container dùng Python 3.11.
+- Python 3.11+ và GNU Make trên máy chủ để chạy toàn bộ ứng dụng gồm API; hạ tầng cũ vẫn nhận Python 3.10. Job trong container dùng Python 3.11.
 - Khoảng **7 GiB RAM khả dụng** trước khi khởi động toàn bộ cụm; chín container có tổng giới hạn 6,25 GiB, cộng tối đa 704 MiB cho ba job init, tổng 6,94 GiB. Docker daemon và hệ điều hành cần RAM riêng. Xem [ngân sách RAM](docs/infra/10-memory-budget.md).
 - Ít nhất 30 GiB trống trên phân vùng chứa Docker data; nên dành thêm dung lượng khi nạp dataset.
 - Internet trong lần build đầu để tải base image, binary Apache và dependency.
@@ -56,7 +58,7 @@ make config
 make test
 ```
 
-`make test` chạy 38 test hạ tầng và 187 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Lượt hiện tại có 218 đạt, 7 HTTP skipped vì môi trường cấm tạo socket loopback. Serving có thêm 19 test API offline và 12 test JavaScript riêng. Không cần cài PySpark trên host. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
+`make test` có 38 test hạ tầng và 211 test ứng dụng ở commit được đối chiếu; 24 test live offline nằm trong suite ứng dụng. Phiên sandbox có 7 HTTP skipped vì cấm socket loopback. Serving có 23 test API offline và 15 test JavaScript riêng. Số lượng có thể tăng theo commit; đọc tổng kết/exit code của suite. Không cần cài PySpark trên host. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
 
 ## Nạp dữ liệu lịch sử
 
@@ -179,7 +181,7 @@ Frontend dùng HTML/CSS/JS và SVG thuần; không cần Node/npm để chạy. 
 
 `make test-web` chạy 15 test JS (cần Node 18+); `make test-api-offline` chạy 23 test HTTP offline. `make test-api` chạy thêm 23 case Mongo thật; `make smoke-web RUN_ID=...` đối chiếu API với một run đã hoàn tất.
 
-Demo nhiều dữ liệu và chạy đến khi dừng: `make live-demo LIVE_ID=demo-live-001 RATE=5`. Một lệnh quản lý consumer/producer, mặc định 1.000 event/lượt và tối đa 200 visitor/100 sản phẩm. Web có feed Kafka ACK mỗi giây, theo dõi run con và snapshot Spark; Ctrl+C dừng/drain, chạy lại cùng LIVE_ID để tiếp tục. Xem [demo live và nghiệm thu](docs/serving/05-live-demo.md). Chế độ live liên tục đã có kiểm thử offline và browser fixture; chạy Spark/Kafka thật qua nhiều lượt còn chờ nghiệm thu do quyền Docker socket trong phiên công cụ.
+Demo nhiều dữ liệu và chạy đến khi dừng: `make live-demo LIVE_ID=onboarding-live-001 RATE=5`. Một lệnh quản lý consumer/producer, mặc định 1.000 event/lượt và tối đa 200 visitor/100 sản phẩm. Web có feed Kafka ACK mỗi giây, theo dõi run con và snapshot Spark; Ctrl+C một lần yêu cầu dừng/drain, resume cần cùng mã/config. Xem [nghiệm thu hữu hạn rồi chạy liên tục](docs/GETTING_STARTED.md#live-demo) và [cách đọc web](docs/serving/06-web-user-guide.md). Artifact thực tế xác nhận `live-check-002` passed 240 event/hai lượt; `demo-live-002` hoàn tất lượt đầu nhưng gián đoạn ở lượt 2, nên stop/resume liên tục cần kiểm chứng riêng. ID khóa mã cũ cần phiên bản gốc hoặc ID mới khi cập nhật mã.
 
 ## Dịch vụ và phiên bản
 

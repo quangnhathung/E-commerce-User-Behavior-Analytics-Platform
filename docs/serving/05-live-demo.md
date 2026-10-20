@@ -1,6 +1,6 @@
 # 05 — Demo liên tục và feed sự kiện trực tiếp
 
-[← Mục lục](README.md) · [API và Live Server](03-dashboard.md)
+[← Mục lục](README.md) · [API và Live Server](03-dashboard.md) · [Sử dụng web và đọc kết quả](06-web-user-guide.md)
 
 ## Vì sao hai run cũ giống nhau?
 
@@ -159,3 +159,11 @@ make live-demo LIVE_ID=live-check-002 RATE=5 LIVE_EVENTS=120 LIVE_VISITORS=24 LI
 Đợi hai dòng `LIVE_SEGMENT_RESULT` có `passed=true`, `batch_reconciled=true`, backlog 0 và cuối phiên `completed_segments=2`, `completed_events=240`. Resource flags cần `no_oom_or_restart=true`, `memory_observations_complete=true`. Trên web thấy feed tăng, trạng thái ACK/processed thay đổi, pointer tự chuyển run con và tổng phiên không giảm.
 
 Sau đó kiểm tra riêng phiên không giới hạn: dừng giữa lượt bằng Ctrl+C, ghi nhận cursor/pointer, chạy lại cùng LIVE_ID và xác nhận không cộng trùng; đợi qua ít nhất hai lượt. Lưu log/report và đo latency thực. Nếu Docker socket hoặc browser bị chặn, ghi hạng mục tương ứng chưa nghiệm thu, không suy kết quả live từ các test offline.
+
+## Bằng chứng đối chiếu ngày 20/10/2026
+
+`artifacts/live/live-check-002/report.json` do người dùng chạy xác nhận `passed=true`, `status=completed`, hai lượt/240 event và cả hai resource flags true. Hai kết quả run con đều `batch_reconciled=true`, backlog 0. Đây là bằng chứng thực tế bổ sung sau lượt công cụ trước bị chặn Docker socket.
+
+`demo-live-002-000001` đối soát đủ 1.000 event/200 visitor, batch 15, p95 42,269 giây. Tuy nhiên parent `demo-live-002` gián đoạn ở lượt 2 với 1.035 ACK/1.000 processed, stop_requested và heartbeat stale; report phiên failed. Monitor không ghi OOM/restart nhưng thiếu một quan sát; log chưa đủ xác định nguyên nhân kết thúc. Stop/drain/resume liên tục vẫn cần nghiệm thu riêng. Giữ snapshot lượt đầu để xem lịch sử; không sửa trạng thái thành công bằng tay.
+
+Các ID, số liệu và thời gian trên là tham chiếu của máy bàn giao, không tự tồn tại trên fresh clone. Lộ trình cho máy mới dùng tên `onboarding-live-check-001` và `onboarding-live-001` ở [GETTING_STARTED](../GETTING_STARTED.md#live-demo); bài thực hành đọc kết quả ở [hướng dẫn web](06-web-user-guide.md#walkthrough).

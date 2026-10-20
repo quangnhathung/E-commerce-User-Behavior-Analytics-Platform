@@ -10,10 +10,10 @@ make test-web
 make test-api-offline
 ```
 
-- `make test`: hồi quy hạ tầng/app; không cần dependency serving. Lượt đã kiểm có 38 + 207 test, 7 HTTP skipped do sandbox; 20 test live nằm trong suite ứng dụng.
+- `make test`: hồi quy hạ tầng/app; không cần dependency serving. Lượt đã kiểm có 38 + 211 test, 7 HTTP skipped do sandbox; 24 test live nằm trong suite ứng dụng.
 - `test-web`: 15 test Node cho client/feed live, ngữ cảnh gọi native `fetch`, snapshot pinning, đổi run/filter, phân trang, visitor leading zero, error recovery, escape và render ba màn hình. DOM adapter nhỏ kiểm tra controller; không thay cho kiểm tra layout trong browser.
 - `test-api-offline`: 23 test FastAPI HTTP với database adapter, cần `make api-setup` trước. Không kết nối MongoDB.
-- `test-live`: 20 test offline cho nguồn live, ACK, buffer, owner fencing, backpressure, chuyển lượt, pause/resume, guard và vòng đời controller. Nghiệm thu Kafka/Spark thật theo [hướng dẫn live](05-live-demo.md).
+- `test-live`: 24 test offline cho nguồn live, ACK, buffer, owner fencing, backpressure, chuyển lượt, pause/resume, guard và vòng đời controller; gồm bốn test pacing cho deadline/RATE/late wakeup/cursor. Nghiệm thu Kafka/Spark thật theo [hướng dẫn live](05-live-demo.md).
 
 Test API gồm: run list ẩn namespace test, config/published snapshot, batch tương lai, pointer tiến, cursor ràng buộc filter/batch, leading zero, CORS Live Server, thời gian có múi giờ, missing prediction/funnel product, pinned model, empty cluster và error redaction.
 
@@ -40,6 +40,8 @@ make smoke-web RUN_ID=ml-sim-001
 
 Smoke đọc pointer Mongo, đối chiếu KPI/minute/funnel với source reference của config, đọc hết prediction qua cursor rồi tính lại fingerprint, kiểm tra cluster/model bindings và visitor. Sau đó gọi overview 100 lần tuần tự, ghi p95 response; mục tiêu ≤1 giây trên máy đang kiểm. Chưa đủ điều kiện hoặc không đạt thì report `passed=false`.
 
+Hai lệnh trên dùng replay hoặc simulator nhỏ chín event. Smoke hiện có lookup visitor cố định cho loại simulator nhỏ; không dùng nguyên kịch bản này để nghiệm thu run con live sinh ngẫu nhiên. Live dùng source reference, `LIVE_SEGMENT_RESULT`, report/resources và API của đúng run theo [runbook live](../GETTING_STARTED.md#live-demo).
+
 Report/log: `artifacts/serving/smoke-web-<RUN_ID>.json/.log`. Đây là số đo API trên run completed, không phải benchmark toàn bộ pipeline đang nhận event. Latency của streaming lấy riêng từ report/monitor streaming; không cộng số đo từ các lần chạy khác nhau để tuyên bố end-to-end.
 
 ## Nghiệm thu browser Live Server
@@ -53,6 +55,8 @@ Report/log: `artifacts/serving/smoke-web-<RUN_ID>.json/.log`. Đây là số đo
 - Không diễn giải precision lịch sử thành precision của run mới hoặc score thành phần trăm xác suất mua.
 
 Ngày 20/10/2026, sau khi sửa ngữ cảnh gọi native `fetch`, Chrome headless đã kiểm tra thành công cả ba màn hình qua Live Server với API/MongoDB đang chạy: simulator 9 event/3 visitor, replay 1.528 event/1.016 visitor, tra visitor có zero đầu, đổi run/reset filter, Cập nhật và tự cập nhật. Report tại `artifacts/serving/fetch-browser-check.json`. Đây là kiểm tra chức năng browser trên hai run đã hoàn tất; chưa nghiệm thu layout desktop/mobile, pipeline tiến batch mới, mất/kết nối lại API, bộ test fixture MongoDB, smoke fingerprint/latency hoặc RAM API host. Các test đã đạt được nêu riêng trong [trạng thái](README.md).
+
+Artifact live mới xác nhận `live-check-002` đủ hai lượt/240 event, passed và monitor đầy đủ; run `demo-live-002-000001` hoàn tất 1.000 event/200 visitor, đối soát batch 15 và p95 42,269 giây. Phiên cha `demo-live-002` gián đoạn ở lượt 2 nên dừng/drain/resume liên tục vẫn pending. API đã được đối chiếu trên snapshot thật; lần browser tự động kiểm snapshot live mới bị chặn bởi quyền socket, không coi đó là một lượt kiểm layout thành công. [Hướng dẫn web](06-web-user-guide.md#walkthrough) có checklist thao tác và ví dụ đọc đúng phạm vi.
 
 ## Lỗi và phục hồi
 

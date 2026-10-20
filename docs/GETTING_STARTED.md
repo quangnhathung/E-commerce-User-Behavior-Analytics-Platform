@@ -1,10 +1,12 @@
 # Hướng dẫn chạy toàn bộ dự án trên máy mới
 
-[← Mục lục tài liệu](README.md) · [README dự án](../README.md)
+[← Mục lục tài liệu](README.md) · [README dự án](../README.md) · [Sử dụng web và đọc kết quả](serving/06-web-user-guide.md)
 
 Tài liệu này dành cho developer nhận repository và tự chạy từ đầu: cài công cụ, chuẩn bị Retailrocket, dựng Docker Compose, ingest, phân tích lịch sử/streaming, K-Means, Random Forest, policy precision, ML streaming có simulator và dashboard HTML/CSS/JS qua Live Server. Không cần `.env`, model, volume hoặc thư mục `artifacts/` của người bàn giao.
 
-Đối chiếu mã nguồn và artifact đến **20/10/2026**. Pipeline ML streaming đã nghiệm thu live suite/replay/simulator/completed reuse qua artifact; API/dashboard mới có test offline, còn chờ serving trên Mongo/browser thật. Các lệnh ứng dụng bên dưới chạy trong **Bash trên Linux hoặc Ubuntu WSL2**, tại thư mục gốc repository. Các khối PowerShell chỉ dùng để chuẩn bị Windows. Chạy từng giai đoạn và kiểm tra kết quả trước khi chuyển bước.
+Đối chiếu mã nguồn và artifact đến **20/10/2026**. Đã có bằng chứng ingestion/ML, replay/simulator, browser trên run hoàn tất và live hữu hạn hai lượt. Live liên tục đã hoàn tất một lượt 1.000 event nhưng bị gián đoạn ở lượt thứ hai; dừng/drain/resume thật còn cần kiểm chứng. Các lệnh ứng dụng bên dưới chạy trong **Bash trên Linux hoặc Ubuntu WSL2**, tại thư mục gốc repository. Các khối PowerShell chỉ dùng để chuẩn bị Windows. Chạy từng giai đoạn và kiểm tra kết quả trước khi chuyển bước.
+
+Tài liệu này hướng dẫn **tạo ra dữ liệu và chạy ứng dụng**. Sau khi mở được dashboard, dùng [hướng dẫn sử dụng web](serving/06-web-user-guide.md) để đọc từng KPI, phân cụm, prediction và trạng thái pipeline. Ví dụ số liệu của máy bàn giao được ghi riêng; developer mới phải kiểm tra report trên chính máy mình.
 
 ## Mục lục
 
@@ -21,6 +23,7 @@ Tài liệu này dành cho developer nhận repository và tự chạy từ đ�
 11. [Policy precision và score mới](#policy)
 12. [ML streaming: replay và simulator](#streaming-ml)
     - [API local và dashboard Live Server](#serving)
+    - [Live nhiều lượt và nghiệm thu ứng dụng](#live-demo)
 13. [Đọc artifact, selector và theo dõi](#artifacts)
 14. [Nghiệm thu chạy lại](#reuse)
 15. [Khởi động lại, ngắt job và xử lý lỗi](#recovery)
@@ -58,6 +61,8 @@ flowchart LR
     POLICY --> MONGO
     STREAM --> MONGO
     LIVE --> MONGO
+    MONGO --> API["FastAPI trên host: đọc snapshot"]
+    API --> WEB["HTML/CSS/JS qua VS Code Live Server"]
 ```
 
 | Thành phần         | Công dụng                                                                               |
@@ -68,8 +73,10 @@ flowchart LR
 | Spark              | Xử lý batch/streaming và ML phân tán qua hai worker.                                    |
 | MongoDB            | Giữ kết quả đã công bố, metadata và lookup theo visitor/sản phẩm.                       |
 | Make và Python CLI | Kiểm tra điều kiện, điều phối job, khóa driver, ghi log và report.                      |
+| FastAPI trên host | Đọc kết quả MongoDB qua HTTP, kiểm tra run/batch/model của snapshot. |
+| Web và Live Server | Hiển thị feed, KPI, phân khúc, dự đoán và tiến độ; người vận hành phát stream từ terminal. |
 
-Đã có ingestion, KPI streaming, session/funnel lịch sử và streaming, K-Means lịch sử, RF batch/policy và **ML streaming đã có artifact nghiệm thu**. **FastAPI host và dashboard HTML/CSS/JS qua Live Server** đã có mã/test offline, còn chờ serving thật. Spark/HDFS UI là giao diện vận hành. Retailrocket không có giá/doanh thu hoặc bước bắt đầu thanh toán; funnel hiện tại là **xem → thêm giỏ → mua**. Hai worker/DataNode cùng một máy không bảo vệ khi cả máy hoặc ổ đĩa hỏng.
+Đã có ingestion, KPI streaming, session/funnel lịch sử và streaming, K-Means lịch sử, RF batch/policy và ML streaming. FastAPI/dashboard đã đọc được dữ liệu thật; xem phạm vi nghiệm thu tại [serving](serving/README.md). Spark/HDFS UI là giao diện vận hành. Retailrocket không có giá/doanh thu hoặc bước bắt đầu thanh toán; funnel hiện tại là **xem → thêm giỏ → mua**. Hai worker/DataNode cùng một máy không bảo vệ khi cả máy hoặc ổ đĩa hỏng.
 
 Các nhánh phụ thuộc như sau; thứ tự trong tài liệu là một lộ trình chạy đầy đủ:
 
@@ -79,8 +86,33 @@ Các nhánh phụ thuộc như sau; thứ tự trong tài liệu là một lộ 
 | Ingest                                    | Hạ tầng healthy, smoke đạt                                                         |
 | Behavior lịch sử, demo streaming, K-Means | Silver đã ingest đạt chất lượng                                                    |
 | RF                                        | Silver; không cần dùng cluster K-Means làm feature                                 |
-| Policy                                    | RF published, validation/test predictions và original batch score                  |
+| Policy                                    | RF published và validation/test predictions; apply cần thêm original batch score |
 | ML streaming                              | Silver, K-Means, RF và policy eligible đã published; không cần tạo batch score mới |
+| API và dashboard | MongoDB đang chạy, API đã cài; muốn xem kết quả cần có run ML nghiệp vụ |
+| Live nhiều lượt | Cùng nguồn/model/policy như ML streaming; một driver/producer được quản lý bởi lệnh live |
+
+### 1.1. Chọn đúng lộ trình
+
+- **Máy mới, nghiệm thu đầy đủ:** thực hiện mục 2–12 theo thứ tự, sau đó 12A–12B. Có cả kiểm thử tích hợp và các pipeline lịch sử.
+- **Chỉ cần chuẩn bị đủ điều kiện cho dashboard:** vẫn cần hạ tầng, ingest, K-Means, RF và policy eligible. Phân tích toàn lịch sử và demo KPI v2 ở mục 8 là nhánh phân tích/nghiệm thu bổ sung; dashboard hiện đọc run ML `stream-ml-v1`, không đọc trực tiếp kết quả v2 hoặc batch lịch sử.
+- **Máy đã dựng xong:** dùng [khởi động lại](#recovery), rồi [mở ứng dụng](#serving). Không chạy lại cả quá trình huấn luyện mỗi lần muốn xem web.
+
+Huấn luyện lần đầu là phần tốn thời gian nhất: build purchase data tham chiếu 45–55 phút, train RF khoảng 30 phút, chưa kể build image, ingest và các test. Thời gian thực tế phụ thuộc máy/mạng; theo dõi tiến độ và exit code thay vì coi đây là thời hạn bắt buộc.
+
+### 1.2. Quy ước terminal và ID
+
+Mỗi terminal Bash đều mở **cùng clone và cùng thư mục root**. Trong các mục demo v2/ML, terminal consumer và producer được ghi riêng. Khi tới dashboard/live, dùng:
+
+| Terminal | Chạy gì | Khi nào giữ mở |
+| --- | --- | --- |
+| A — API | `make api` | Suốt thời gian sử dụng web |
+| B — job | Một job Spark, hoặc `make live-demo` | Đến khi job hoàn tất hoặc live dừng/drain xong |
+| C — điều khiển | Health/status; hoặc producer khi dùng replay/simulator kiểu cũ | Theo từng lệnh |
+| VS Code/browser | Live Server và dashboard | Suốt buổi xem kết quả |
+
+Một Spark driver phục vụ hai worker. API và Live Server chạy cùng driver được; không chạy smoke, test tích hợp, train hoặc consumer thứ hai trong lúc live đang giữ driver. `make live-demo` đã có producer bên trong, không chạy thêm `simulate-ml` cho phiên đó.
+
+ID trong các lệnh là tên ví dụ. Lần đầu dùng đúng tên trong tài liệu; khi tạo kịch bản khác hoặc đổi mã/config, chọn tên mới. Chạy tiếp cùng ID chỉ khi giữ nguyên mã, nguồn, model và cấu hình đã khóa. Không lấy ID SHA model của máy tác giả điền vào máy mới.
 
 <a id="requirements"></a>
 
@@ -92,11 +124,13 @@ Các nhánh phụ thuộc như sau; thứ tự trong tài liệu là một lộ 
 | CPU                   | `x86_64`, hỗ trợ AVX, Docker thấy ít nhất 4 CPU logic                                                                         |
 | RAM                   | Khoảng **7 GiB khả dụng** trước khi dựng cả cụm; khuyến nghị máy có ít nhất 16 GB để còn RAM cho OS/Docker                    |
 | Dung lượng            | Preflight yêu cầu ít nhất **30 GiB trống ở Docker data**; nên dành 50–60 GiB trở lên và theo dõi khi lưu nhiều snapshot/model |
-| Công cụ host          | Git, GNU Make, Python 3.10+, Bash, curl, unzip, GNU coreutils                                                                 |
+| Công cụ host          | Git, GNU Make, Python **3.11+** và venv/pip cho toàn bộ lộ trình có API; Bash, curl, unzip, GNU coreutils |
+| Giao diện | VS Code, extension Live Server (`ritwickdey.LiveServer`) và trình duyệt hỗ trợ ES modules |
+| Test web, tùy chọn | Node 18+ cho `make test-web`; frontend chạy không cần npm/Node |
 | Docker                | Daemon truy cập được, Compose hỗ trợ `up --wait`, Buildx plugin hoạt động                                                     |
 | Mạng                  | Lần build đầu cần tải image, binary Apache, Python dependencies và dataset                                                    |
 
-Tổng limit chín service thường trực là **6,25 GiB**. Ba init job có thể thêm 704 MiB, tổng tối đa **6,94 GiB**; bộ nhớ hệ điều hành và daemon nằm ngoài số này. Driver dùng heap 512 MiB, mỗi executor 640 MiB và một core. Chỉ chạy **một Spark driver tại một thời điểm**, kể cả smoke và integration test. Producer replay có thể chạy đồng thời với streaming theo hướng dẫn riêng.
+Tổng limit chín service thường trực là **6,25 GiB**. Ba init job có thể thêm 704 MiB, tổng tối đa **6,94 GiB**; bộ nhớ hệ điều hành, daemon, API, VS Code và browser nằm ngoài số này. Driver dùng heap 512 MiB, mỗi executor 640 MiB và một core. Chỉ chạy **một Spark driver tại một thời điểm**, kể cả smoke và integration test. Producer replay có thể chạy đồng thời với streaming theo hướng dẫn riêng.
 
 Java, Spark, Hadoop, PySpark và các dependency ứng dụng được cài trong image; không cần cài chúng bằng pip hoặc Java trên host. Không giả định chạy được trên ARM/Apple Silicon hoặc Windows native. Chi tiết: [ngân sách RAM](infra/10-memory-budget.md).
 
@@ -112,7 +146,7 @@ Cài công cụ và đăng ký repository Docker:
 
 ```bash
 sudo apt update
-sudo apt install -y ca-certificates curl git make python3 unzip
+sudo apt install -y ca-certificates curl git make python3 python3-venv python3-pip unzip
 sudo install -m 0755 -d /etc/apt/keyrings
 sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 sudo chmod a+r /etc/apt/keyrings/docker.asc
@@ -138,7 +172,7 @@ sudo usermod -aG docker "$USER"
 Chạy trong terminal Arch:
 
 ```bash
-sudo pacman -Syu --needed docker docker-compose docker-buildx git make python curl unzip
+sudo pacman -Syu --needed docker docker-compose docker-buildx git make python python-pip curl unzip
 sudo systemctl enable --now docker
 sudo groupadd --force docker
 sudo usermod -aG docker "$USER"
@@ -194,7 +228,7 @@ Mở lại Docker Desktop và Ubuntu. Lệnh trên dừng **mọi distro WSL đa
 
 ```bash
 sudo apt update
-sudo apt install -y git make python3 curl unzip ca-certificates
+sudo apt install -y git make python3 python3-venv python3-pip curl unzip ca-certificates
 ```
 
 Clone repository và lưu CSV trong filesystem Linux, ví dụ `~/workspace/`, để bind mount có hiệu năng tốt. Tránh đặt workspace/dataset dưới `/mnt/c`. Có thể mở `explorer.exe .` từ Ubuntu để chép ZIP vào thư mục Linux. Giữ file shell ở newline **LF**. Xem [Docker WSL best practices](https://docs.docker.com/desktop/features/wsl/best-practices/).
@@ -216,7 +250,7 @@ free -h
 df -h .
 ```
 
-Đạt khi kiến trúc `x86_64`, Docker báo Linux/amd64 và ít nhất bốn CPU, Python ≥3.10, không lỗi socket/daemon, Compose và Buildx in phiên bản. Preflight dự án còn kiểm tra AVX và tài nguyên. Trên WSL, cần đủ RAM khả dụng **bên trong Linux**, đồng thời đủ dung lượng ổ Windows chứa virtual disk của Docker Desktop; `df -h .` một mình không xác nhận ổ Docker còn trống.
+Đạt khi kiến trúc `x86_64`, Docker báo Linux/amd64 và ít nhất bốn CPU, Python ≥3.11 cho cả API, không lỗi socket/daemon, Compose và Buildx in phiên bản. Hạ tầng cũ nhận Python 3.10 nhưng API cần 3.11+; nếu dùng interpreter khác, chỉ rõ `PYTHON=python3.11 make api-setup`. Preflight dự án còn kiểm tra AVX và tài nguyên. Trên WSL, cần đủ RAM khả dụng **bên trong Linux**, đồng thời đủ dung lượng ổ Windows chứa virtual disk của Docker Desktop; `df -h .` một mình không xác nhận ổ Docker còn trống.
 
 Nếu Docker chưa truy cập được: Linux kiểm tra service/group và đăng nhập lại; WSL kiểm tra Desktop đang mở, Linux containers và integration đúng distro. Chưa chuyển sang build khi bước này còn lỗi.
 
@@ -239,6 +273,8 @@ git rev-parse HEAD
 ```
 
 Nhánh hiện hành là `dev`. Khi bàn giao một phiên bản cố định, dùng commit/tag đã được nhóm thống nhất thay vì tự lấy mã mới giữa các job. Ghi lại commit vào biên bản; nó giúp giải thích khác biệt identity và model giữa hai máy. Nếu chọn đường dẫn workspace khác, thay `cd` ở các terminal trong tài liệu tương ứng.
+
+Mở folder repository bằng **File → Open Folder** trong VS Code, hoặc `code .` nếu đã có CLI. Cài [Live Server của Ritwick Dey](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer) qua Extensions (`Ctrl+Shift+X`), tìm đúng extension ID `ritwickdey.LiveServer` rồi Install. Trên WSL mở workspace bằng Remote WSL và cài extension vào môi trường workspace. Phần chạy web ở [mục 12A](#serving).
 
 ### 4.2. Tải và giải nén dataset
 
@@ -344,7 +380,7 @@ Không tạo lại `.env` khi volume đang giữ dữ liệu. Đổi password tr
 make test
 ```
 
-Bộ hiện tại có 38 test hạ tầng và 187 test ứng dụng. Trên máy bình thường kỳ vọng các suite kết thúc `OK`, không failure/error. Một phiên kiểm tra trong sandbox có 218 đạt, 7 HTTP skipped vì cấm loopback socket; đó là giới hạn của phiên ấy, **không phải số skip bắt buộc trên máy mới**. Serving có thêm 19 test API offline và 12 test JS qua các lệnh riêng. Test offline không chứng minh Spark/HDFS/Mongo/Kafka thực sự hoạt động. Nếu lỗi thiếu Compose/Bash/curl, sửa công cụ host rồi chạy lại.
+Bộ được đối chiếu ngày 20/10 có 38 test hạ tầng và 211 test ứng dụng; 24 test live offline nằm trong suite ứng dụng. Trên máy bình thường kỳ vọng các suite kết thúc `OK`, không failure/error. Phiên sandbox trước có 7 HTTP skipped vì cấm loopback socket; đó **không phải số skip bắt buộc trên máy mới**. Serving có 23 test API offline và 15 test JS qua các lệnh riêng sau khi cài API/Node. Số test có thể tăng theo commit; exit code và tổng kết suite của mã đang dùng mới là bằng chứng. Test offline không chứng minh Spark/HDFS/Mongo/Kafka thực sự hoạt động. Nếu lỗi thiếu Compose/Bash/curl, sửa công cụ host rồi chạy lại.
 
 ### 6.2. Build image lần đầu
 
@@ -676,19 +712,196 @@ make stream-ml-status RUN_ID=ml-sim-001 VISITOR_ID=000099000000003
 
 ## 12A. API local và dashboard Live Server
 
-Cần run ML đã chuẩn bị và MongoDB đang chạy. API dùng Python 3.11+ trên host; frontend không cần npm hoặc build image:
+### 12A.1. Cần có gì trước khi mở web?
+
+Cần MongoDB đang chạy, `.env` của máy này và Python 3.11+ với venv/pip. Hoàn tất mục 12 để có run ML nghiệp vụ xem được; API vẫn có thể khởi động trước khi có run, nhưng dashboard chưa có số liệu. Không dùng run KPI v2 ở mục 8 để kỳ vọng có bảng prediction.
+
+Frontend dùng HTML/CSS/JS thuần qua Live Server. API là tiến trình host; dữ liệu/model/Kafka/HDFS/MongoDB vẫn ở Docker. Không có bước npm install, build frontend hoặc container web.
+
+### 12A.2. Cài API và indexes một lần
+
+Tại root repository, khi MongoDB đã healthy:
 
 ```bash
 make api-setup
 make api-indexes
+```
+
+| Lệnh | Công dụng | Dấu hiệu đạt |
+| --- | --- | --- |
+| `api-setup` | Tạo `services/.venv/`, cài dependency khóa phiên bản, chạy `pip check` | Exit 0; `No broken requirements found` |
+| `api-indexes` | Tạo/kiểm tra indexes cho run, minute, prediction và feed live | `Serving indexes verified; no snapshot content changed.` |
+
+`api-indexes` không mở HTTP server. Dòng pip thông báo có bản mới không phải lỗi cài đặt. Nếu Python mặc định quá cũ, dùng interpreter 3.11+ cho `api-setup`; sau đó manager gọi interpreter trong virtualenv. Không copy `services/.venv/` từ máy khác.
+
+### 12A.3. Terminal A: giữ API hoạt động
+
+```bash
+cd ~/workspace/E-commerce-User-Behavior-Analytics-Platform
 make api
 ```
 
-Giữ terminal API chạy. Trong VS Code, mở `web/index.html` → **Open with Live Server**. API mặc định `http://127.0.0.1:8000`, dashboard chọn RUN_ID và tự cập nhật mỗi 5 giây. Ba màn hình: tổng quan/funnel, phân khúc/prediction và pipeline. API lấy application credentials từ `.env`; không đưa mật khẩu vào file JS.
+Đợi `Uvicorn running on http://127.0.0.1:8000`. Giữ terminal này mở. Từ terminal C:
 
-Muốn xem cập nhật mới, prepare một RUN_ID simulator mới rồi chạy consumer/producer ở các terminal khác như mục 12. API/Live Server chạy cùng streaming được; các Spark job vẫn chạy tuần tự. Kiểm tra bằng `make test-api`, `make test-web` và `make smoke-web RUN_ID=<run-completed>`; Node chỉ dùng cho test JS. Hướng dẫn chi tiết, đổi cổng, test offline và cleanup: [docs/serving/](serving/README.md).
+```bash
+curl -sS http://127.0.0.1:8000/api/v1/health
+```
 
-Để demo nhiều event liên tục, sau khi API đã nạp mã mới chạy `make live-demo LIVE_ID=demo-live-001 RATE=5`. Chọn phiên live trên web và bật **Theo dõi live**; lệnh tự quản lý cả consumer và producer, nối các lượt 1.000 event cho đến khi Ctrl+C. Dùng cùng LIVE_ID để tiếp tục; phiên mới tạo kịch bản khác. Feed event được đọc mỗi giây; KPI/dự đoán vẫn chờ Spark commit. Xem [hướng dẫn live, tham số và nghiệm thu](serving/05-live-demo.md).
+Kỳ vọng `{"status":"ready","mongodb":true}`. Mở [Swagger API](http://127.0.0.1:8000/docs) để kiểm tra các GET endpoint. API lấy application credentials từ `.env`, không cần root Mongo; không đưa mật khẩu/URI Mongo vào JS.
+
+Nếu `make api` đã thoát hoặc bạn bấm Ctrl+C, HTTP server đã dừng dù trước đó có dòng startup thành công. Giữ API chạy độc lập khi mở web hoặc phát live.
+
+### 12A.4. Mở frontend bằng VS Code
+
+1. Mở đúng folder root repository trong VS Code.
+2. Mở `web/index.html` trong Explorer.
+3. Chuột phải → **Open with Live Server**; có thể dùng lệnh tương ứng trong Command Palette.
+4. Mở URL extension cung cấp. Với root repository và cổng mặc định: [http://127.0.0.1:5500/web/](http://127.0.0.1:5500/web/) hoặc `/web/index.html`.
+5. Kiểm tra `web/config.js` có `apiBaseUrl: "http://127.0.0.1:8000"` trùng API đang chạy. Nếu Live Server chọn cổng khác, dùng đúng URL in ở VS Code.
+6. Chọn `ml-replay-001` hoặc `ml-sim-001` đã chạy ở mục 12. Thu gọn **Xem event mới nhất** nếu khung feed che khu vực bên dưới.
+
+Đạt khi trạng thái báo dữ liệu đã kết nối, RUN_ID hiện đúng, có batch đã commit và các màn hình **Tổng quan**, **Phân khúc & dự đoán**, **Theo dõi pipeline** đọc được dữ liệu. Run đang chuẩn bị có thể chưa có batch; chọn một run completed để kiểm tra ban đầu.
+
+Nếu mở riêng folder `web` trong VS Code, URL có thể là `/index.html`. Không mở bằng `file://`. Trên WSL, mở workspace qua Remote WSL và kiểm tra URL health từ chính browser trước; localhost forwarding phải hoạt động. [Hướng dẫn extension chính thức](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer) mô tả các cách mở/dừng Live Server.
+
+### 12A.5. Đọc dữ liệu đầu tiên và đổi cổng
+
+Tại **Phân khúc & dự đoán**, đọc biểu đồ cluster và bảng **Visitor ưu tiên theo điểm mô hình**. Giữ nhãn lọc **Tất cả visitor**; lọc **Dự đoán mua** có thể rỗng nếu không ai vượt ngưỡng. Precision/recall ở cuối trang là metrics lịch sử của model/policy, chưa phải chất lượng dự đoán stream đang xem.
+
+Nếu 8000 đã có ứng dụng khác, đặt `API_HOST_PORT=8001` trong `.env`, dừng API cũ rồi chạy `make api`. Sửa `web/config.js` tương ứng:
+
+```js
+window.ECOMMERCE_CONFIG = {
+  apiBaseUrl: "http://127.0.0.1:8001",
+  refreshMs: 5000,
+  sparkUiPort: 18080,
+  hdfsUiPort: 9870
+};
+```
+
+Kiểm tra health tại cổng mới, tải lại browser; thay cổng trong các ví dụ curl bên dưới. Live Server có cổng riêng. CORS chấp nhận origin HTTP localhost/127.0.0.1 với các cổng; không cần thay Mongo host port chỉ vì đổi API port.
+
+### 12A.6. Kiểm thử lớp application
+
+Giữ API chạy, dùng terminal C. Chạy từng lệnh và kiểm tra tổng kết:
+
+```bash
+make test-api-offline
+make test-api
+make smoke-web RUN_ID=ml-replay-001
+```
+
+- `test-api-offline`: kiểm thử HTTP với adapter, không chứng minh Mongo thật.
+- `test-api`: chạy thêm fixture Mongo thật, cần đủ suite và cleanup; report `artifacts/serving/test-api.json`.
+- `smoke-web`: cần run `ml-replay-001` đã **completed** và API hoạt động. Đối chiếu KPI/funnel/cluster/model, đọc hết prediction và fingerprint; đo p95 100 request overview, mục tiêu ≤1 giây. Report `artifacts/serving/smoke-web-ml-replay-001.json` phải `passed=true`.
+
+Kịch bản smoke trong tài liệu dùng replay đã hoàn tất hoặc simulator nhỏ chín event `ml-sim-001`. Không thay bằng run con live sinh ngẫu nhiên: smoke hiện có lookup visitor riêng cho simulator nhỏ. Để nghiệm thu live, dùng quy trình mục 12B và report/API của đúng run.
+
+Nếu muốn chạy test frontend, cài Node 18+ từ package manager trước. Ubuntu/WSL: `sudo apt install -y nodejs`; Arch: `sudo pacman -S --needed nodejs`. Sau khi `node --version` đáp ứng yêu cầu:
+
+```bash
+make test-web
+```
+
+Kỳ vọng 15 test JS theo commit đang đối chiếu; không cần npm install. Dashboard vẫn hoạt động khi chưa cài Node. Test Node dùng adapter/logic, không xác nhận đầy đủ layout hoặc cập nhật trên browser thật.
+
+Hướng dẫn thao tác từng màn hình, định nghĩa mọi chỉ số, cách lọc/tra visitor và tình huống lỗi: [Sử dụng web và đọc kết quả](serving/06-web-user-guide.md).
+
+<a id="live-demo"></a>
+
+## 12B. Live nhiều lượt và nghiệm thu ứng dụng
+
+### 12B.1. Điều kiện và kiểm tra nhanh
+
+Hoàn tất Silver, K-Means, RF và policy eligible, API indexes và Live Server. API có thể đọc dữ liệu đồng thời; cần kết thúc các job Spark trước. Khi cụm đang idle, kiểm tra `make doctor`, rồi:
+
+```bash
+make test-live
+```
+
+Đây là 24 test offline theo commit được đối chiếu, bao gồm pacing, ACK/cursor, chuyển lượt và pause/resume giả lập. Kết quả offline không thay thế hai lượt Kafka/Spark thật bên dưới.
+
+### 12B.2. Terminal B: nghiệm thu hữu hạn trước
+
+Trong cùng root repository:
+
+```bash
+make live-demo LIVE_ID=onboarding-live-check-001 RATE=5 LIVE_EVENTS=120 LIVE_VISITORS=24 LIVE_ITEMS=12 LIVE_SEGMENTS=2
+```
+
+Lệnh tự chuẩn bị seed, tải hai model một lần, tạo run con và chạy consumer/producer. Đợi `LIVE_SEGMENT_READY=onboarding-live-check-001-000001`. Trên web chọn phiên `onboarding-live-check-001`, bật **Theo dõi live** và **Tự cập nhật KPI**. Quan sát feed ACK, rồi snapshot Spark và chuyển sang run con `-000002`.
+
+Không mở thêm consumer/producer. API ở terminal A và Live Server vẫn giữ mở. Chờ lệnh terminal B tự kết thúc sau hai lượt; không dùng Ctrl+C để thay cho hoàn tất kịch bản hữu hạn.
+
+Kiểm tra report từ terminal C:
+
+```bash
+python3 -m json.tool artifacts/live/onboarding-live-check-001/report.json
+python3 -m json.tool artifacts/live/onboarding-live-check-001/resources.json
+make live-status LIVE_ID=onboarding-live-check-001
+```
+
+**Đạt khi:** `passed=true`, `status=completed`, `completed_segments=2`, `completed_events=240`, hai resource flags true; từng `LIVE_SEGMENT_RESULT` có `passed=true`, `batch_reconciled=true`, backlog 0. API phải trả tổng ACK/processed 240; cluster/prediction của từng run con thuộc đúng batch đã commit. Số giao dịch, cluster distribution và predicted positive phụ thuộc nguồn/model; không bắt buộc có người được dự đoán mua.
+
+### 12B.3. Terminal B: demo liên tục
+
+Sau khi lượt hữu hạn kết thúc, dùng **LIVE_ID mới** vì tham số được khóa:
+
+```bash
+make live-demo LIVE_ID=onboarding-live-001 RATE=5
+```
+
+Mặc định mỗi lượt 1.000 event, 200 visitor, 100 sản phẩm; tiếp tục nhiều lượt cho đến khi yêu cầu dừng. Chọn `onboarding-live-001` trong **Phiên live**, bật hai checkbox theo dõi/KPI. Run con có dạng `onboarding-live-001-000001`, `-000002`… Mỗi lượt có cohort visitor mới; KPI chính thuộc run con đang được xem, tổng trong panel live thuộc toàn phiên.
+
+| Tham số khi tạo phiên | Mặc định | Ý nghĩa/giới hạn |
+| --- | ---: | --- |
+| `RATE` | 5 | Event/giây; >0 và ≤10 |
+| `LIVE_EVENTS` | 1.000 | Event mỗi lượt, 12..1.000 |
+| `LIVE_VISITORS` | 200 | 3..200 và không quá nửa event mỗi lượt |
+| `LIVE_ITEMS` | 100 | 3..100 |
+| `LIVE_SEGMENTS` | 0 | 0 là liên tục; số dương giới hạn tổng số lượt |
+
+Seed nguồn được giữ theo phiên; đổi LIVE_ID sinh kịch bản khác. Ngày nghiệp vụ vẫn là 2015 theo cutoff model, còn giờ phát là giờ hiện tại UTC. Thêm dữ liệu không buộc score, nhãn hoặc số người mua phải tăng.
+
+Feed kiểm tra khoảng một giây, KPI có nhịp đọc dự phòng năm giây và theo pointer mới. Spark trigger 15 giây nhưng batch có thể xử lý lâu hơn; Kafka ACK trước khi Spark commit là bình thường. Producer chờ khi backlog đạt 200. Khi chuyển lượt, web giữ snapshot hoàn chỉnh trước cho tới khi lượt mới có batch công bố.
+
+### 12B.4. Dừng, kiểm tra và tiếp tục
+
+Nhấn **Ctrl+C một lần** tại terminal B, giữ terminal mở để producer ngừng gửi và Spark drain phần đã ACK, tối đa 180 giây theo runtime. Hoặc từ terminal C:
+
+```bash
+make live-stop LIVE_ID=onboarding-live-001
+```
+
+`stop_requested=true` chỉ xác nhận yêu cầu dừng đã được ghi, chưa chứng minh drain thành công. Chờ terminal B trả kết quả rồi kiểm tra:
+
+```bash
+make live-status LIVE_ID=onboarding-live-001
+python3 -m json.tool artifacts/live/onboarding-live-001/report.json
+```
+
+Sau khi xác nhận driver đã dừng, cùng mã và cấu hình:
+
+```bash
+make live-demo LIVE_ID=onboarding-live-001
+```
+
+Tiếp tục từ ACK cursor/checkpoint; không đổi RATE hoặc tham số nguồn để resume. Khi code hash thay đổi, chọn LIVE_ID mới hoặc trở về đúng mã cũ; không sửa request/checkpoint để bỏ kiểm tra. Chạy tiếp tới một lượt hoàn tất và đối chiếu tổng không cộng trùng. Phiên dừng giữa lượt có thể được công nhận vòng đời dừng/drain thành công, nhưng `completed_segments` chỉ đếm lượt đã đối soát đủ nguồn.
+
+Nếu `stale`, `failed`, còn ACK chưa commit hoặc có guard unconfirmed, giữ log/report và kiểm tra [phục hồi](#recovery), [live runbook](serving/05-live-demo.md). Không coi consumer `running` đã lưu trong registry là bằng chứng job còn chạy; kiểm tra heartbeat và Spark UI. Lượt thực tế `demo-live-002` từng dừng với 1.035 ACK/1.000 processed dù lượt đầu thành công, nên quy trình stop/resume phải nghiệm thu riêng trên máy mới.
+
+### 12B.5. Điểm kết thúc của lộ trình
+
+Ứng dụng sẵn sàng để bàn giao khi developer có thể tự làm đủ các việc sau:
+
+- Hạ tầng healthy, ingest/model/policy đã published và có report hợp lệ trên chính máy mình.
+- Health API ready; web mở qua Live Server, không có banner kết nối lỗi.
+- Chọn run completed và đọc được KPI/funnel, cluster/prediction, pipeline cùng snapshot.
+- Live hữu hạn hoàn tất hai lượt và đối soát đúng 240 event, resource đầy đủ, không OOM/restart.
+- Trên browser quan sát ACK tăng, processed tăng sau commit và tự chuyển snapshot sang run con tiếp theo.
+- Nếu cần vận hành liên tục, đã kiểm tra dừng/drain/resume riêng; ghi pending nếu chưa đạt.
+
+Tài liệu web có [bài thực hành và checklist](serving/06-web-user-guide.md#walkthrough) để người nhận tự xác nhận các thao tác này. Kết thúc demo giữ kết quả xem lại, dừng live trước, dừng API/Live Server riêng; dùng `make down` khi muốn dừng cả hạ tầng nhưng giữ volume.
 
 <a id="artifacts"></a>
 
@@ -712,6 +925,10 @@ Muốn xem cập nhật mới, prepare một RUN_ID simulator mới rồi chạy
 | `prediction/policies/latest-policy.json`                 | Policy đánh giá gần nhất, có thể `eligible=false`                                              |
 | `prediction/policies/latest-policy-score.json`           | Score run mới được apply policy                                                                |
 | `streaming-ml/latest-run.json`, `streaming-ml/<RUN_ID>/` | Config/model binding, seed/source references, ACK, report/status và resources của ML streaming |
+| `live/<LIVE_ID>/` | Request/config đã khóa, report/status, resources, log từng attempt và kết quả các run con |
+| `serving/` | Report/log test API và smoke HTTP theo RUN_ID; khác report latency Spark |
+
+Live quản lý log/report ở cấp LIVE_ID; không giả định mỗi run con có thư mục host `streaming-ml/`. Run con và snapshot vẫn ở registry/HDFS. Không đưa `live/<LIVE_ID>/control.json` chứa owner token vào log công khai.
 
 Các lệnh ứng dụng dùng ID để ghi `report.json`, `status.json`, log/resource hoặc attempt log trong namespace tương ứng; đường dẫn log chính xác thường nằm trong field `log` của report. Có thể đọc JSON mà không cần cài `jq`:
 
@@ -747,6 +964,7 @@ PY
 | `POLICY_VERSION`                                                 | Chọn policy đã đánh giá                                                                      |
 | `VISITOR_ID`                                                     | Lookup ID chuỗi, giữ leading zero                                                            |
 | `DEMO_SOURCE`, `SEGMENT_MODEL_VERSION`, `PURCHASE_MODEL_VERSION` | Chọn replay/simulator và model riêng khi prepare ML streaming; policy dùng `POLICY_VERSION`  |
+| `LIVE_ID`, `LIVE_EVENTS`, `LIVE_VISITORS`, `LIVE_ITEMS`, `LIVE_SEGMENTS` | Phiên live, quy mô mỗi lượt và giới hạn tổng lượt; cấu hình bị khóa khi tạo phiên |
 
 Dùng assignment trên từng lệnh, ví dụ `make behavior-status RUN_ID=onboarding-demo-001`, thay vì export selector dài hạn làm các giai đoạn sau đọc nhầm registry. ID model/snapshot phụ thuộc dữ liệu, mã, tham số và phiên bản; không lấy ID máy khác để điền trên máy mới. Không tự sửa JSON pointer hoặc snapshot đã published.
 
@@ -762,6 +980,8 @@ Dùng assignment trên từng lệnh, ví dụ `make behavior-status RUN_ID=onbo
 | <http://127.0.0.1:14040>                           | Spark application UI khi driver còn chạy                               |
 | `127.0.0.1:19092`                                  | Kafka host client                                                      |
 | `127.0.0.1:27018`                                  | Mongo host client; database/authSource `ecommerce`, app user từ `.env` |
+| <http://127.0.0.1:8000/docs> | API host, Swagger; health ở `/api/v1/health` |
+| <http://127.0.0.1:5500/web/> | Dashboard nếu Live Server mở root repository ở cổng mặc định |
 
 Publish bind `127.0.0.1`; không tự mở ra Internet. Trên Windows/WSL thử các URL localhost từ browser Windows; nếu forwarding không hoạt động thì kiểm tra Desktop/WSL trước khi đổi network. Trong container dùng `kafka:9092`, `mongodb:27017`, `hdfs://namenode:9000`, `spark://spark-master:7077`; localhost của container không trỏ sang dịch vụ khác.
 
@@ -792,6 +1012,7 @@ Sau lượt đầu thành công, lưu report/log/resources và commit dùng đ�
 | `make tune-purchase-policy`                      | Cùng policy/selection/evaluation, `reused=true`; không chọn ngưỡng lại                                        |
 | `make apply-purchase-policy` nếu eligible        | Cùng policy score ID, `reused=true`, Mongo count/fingerprint không đổi                                        |
 | `make stream-ml RUN_ID=...` sau completed        | Cùng config/model, checkpoint cuối và ML fingerprint, `reused=true`, không phát lại event hoặc thêm row trùng |
+| `make live-demo LIVE_ID=...` sau dừng/drain | Cùng mã/config/seed, tiếp tục đúng cursor/checkpoint, tổng phiên không cộng trùng; nghiệm thu riêng với run còn dở |
 
 Sau apply lại, đọc lại `latest-policy-score.json` và chạy `purchase-score-status SCORE_RUN_ID=...` bằng cách ở mục 11. Original pointer vẫn phải giữ nguyên. Với cùng identity, retry snapshot published chỉ xác minh; không âm thầm chữa payload hỏng.
 
@@ -816,13 +1037,17 @@ make doctor
 
 Không cần chạy lại setup/build/ingest/train nếu image, cấu hình và dữ liệu còn nguyên. Có thể chạy smoke trước khi tiếp tục kiểm thử; chỉ khi không có job khác. Dùng status của giai đoạn đã hoàn thành, hoặc retry đúng job bị ngắt. `docker compose up -d` có cú pháp đúng nhưng `make up` là entrypoint khuyến nghị vì có preflight/readiness bổ sung; `docker compose-up -d` là sai cú pháp.
 
+Muốn mở ứng dụng: terminal A chạy `make api`, mở lại Live Server rồi chọn RUN_ID cũ. Muốn dữ liệu mới: terminal B chạy live/replay theo [mục 12B](#live-demo). Chỉ xem lại kết quả không cần phát lại event. Chạy `api-setup` khi venv chưa có hoặc dependency thay đổi, `api-indexes` khi cần áp dụng indexes mới.
+
 ### 15.2. Ctrl+C và khóa driver
 
-Các manager ứng dụng áp timeout **1.800 giây mỗi child**, gửi cancel theo UUID và xác nhận remote job đã dừng khi ngắt. Smoke/persistence giới hạn **600 giây mỗi child**. Chờ lệnh trả về và đọc thông báo trước khi mở job mới; kill Docker exec client không luôn đồng nghĩa driver trong container đã dừng.
+Các manager batch/replay áp timeout **1.800 giây mỗi child**, gửi cancel theo UUID và xác nhận remote job đã dừng khi ngắt. Riêng `live-demo` dùng wrapper không có timeout 30 phút để chạy liên tục; vẫn có drain/cancel và gate dung lượng trước mỗi lượt. Smoke/persistence giới hạn **600 giây mỗi child**. Chờ lệnh trả về và đọc thông báo trước khi mở job mới; kill Docker exec client không luôn đồng nghĩa driver trong container đã dừng.
 
 Nếu thấy `Another managed Spark job is running`, xác định job/terminal hiện tại và chờ hoặc ngắt đúng terminal. Không xóa `driver.lock` để ép chạy chồng. Lock chỉ điều phối cùng workspace; một clone khác hoặc spark-submit thủ công có thể xung đột cổng driver dù không thấy lock này.
 
 Nếu có `artifacts/infra/driver-unconfirmed.json`, đọc marker, log UUID và kiểm tra Spark UI/process trong client. Manager đang chặn vì chưa xác nhận remote driver dừng. Chỉ gỡ marker sau khi đã xác nhận **đúng job ghi trong marker** dừng; xem [phục hồi streaming](streaming/04-testing-and-recovery.md). Không coi xóa marker là cách dừng job.
+
+Live có cả guard producer `artifacts/streaming/producer-unconfirmed.json` khi cancel chưa xác nhận. Đợi drain bằng Ctrl+C một lần; bấm lần hai có thể kích hoạt force cancel. `stop_requested=true` hoặc `no_oom_or_restart=true` riêng lẻ chưa đủ công nhận stop/resume: cần snapshot/offset, trạng thái cuối và quan sát tài nguyên đầy đủ.
 
 Snapshot đã commit được giữ để retry; phần staging chưa published không được coi là kết quả. Không đổi branch, sửa package hoặc sửa CSV giữa lần bị ngắt và lần resume.
 
@@ -846,6 +1071,13 @@ Snapshot đã commit được giữ để retry; phần staging chưa published 
 | Thiếu `_SUCCESS`, checksum/count/fingerprint sai | Giữ log, xác định snapshot hỏng và khôi phục đúng bản; không tự xóa cả data lake hoặc overwrite published.                         |
 | Status trả score gốc sau apply                   | Đọc `policies/latest-policy-score.json`, truyền chính xác `SCORE_RUN_ID` mới.                                                      |
 | Policy passed nhưng eligible false               | Tác vụ chạy đúng nhưng mục tiêu không đạt; giữ score gốc và không apply.                                                           |
+| API indexes đã verified nhưng web không kết nối | Chạy và giữ `make api`; kiểm tra URL health/cổng, indexes không mở server. |
+| Thiếu venv/pip hoặc Python quá cũ | Dùng Python 3.11+ cho API; Ubuntu cài `python3-venv`/`python3-pip`; xem interpreter của `services/.venv/`. |
+| Web không thấy cluster/prediction | Chọn Phân khúc & dự đoán, thu gọn feed, chọn run ML có committed batch; dùng hướng dẫn web. |
+| Lọc nhãn Dự đoán mua rỗng | So score với ngưỡng policy, bỏ lọc để đọc toàn bộ visitor; không phải bằng chứng pipeline chưa score. |
+| `sleep length must be non-negative` trong live | Bản hiện tại sửa pacing và có test hồi quy. Cập nhật đúng mã; phiên khóa code cũ cần ID mới, không build/train lại. |
+| Live stale, registry vẫn running | Đối chiếu heartbeat, ACK/processed, stop request, Spark active application, report/log/resources; trạng thái registry có thể đã cũ. |
+| Live dừng ở lượt 2, lượt 1 đã completed | Giữ snapshot lượt 1; đối soát ACK còn dở ở lượt 2 và điều tra job trước khi resume; không đánh dấu toàn phiên passed từ một run con. |
 
 Chi tiết thêm: [hạ tầng](infra/07-troubleshooting.md), [ingestion](data/03-ingestion.md), [prediction](ml/07-purchase-operations.md).
 
@@ -854,6 +1086,8 @@ Chi tiết thêm: [hạ tầng](infra/07-troubleshooting.md), [ingestion](data/0
 ## 16. Dừng và dọn dữ liệu đúng phạm vi
 
 Trước khi dừng/reset, kết thúc job ở terminal đang chạy và xác nhận remote driver đã dừng. Chọn thao tác theo mục đích:
+
+Dừng live/drain trước; Ctrl+C terminal API và Stop Live Server riêng. `make down` chỉ quản lý Docker, không dừng hai tiến trình host này. Không có image/container/volume web riêng để dọn.
 
 | Thao tác                                 | Container/network project | Named volumes           | Images/cache          | Host `.env`, CSV, `artifacts/` |
 | ---------------------------------------- | ------------------------- | ----------------------- | --------------------- | ------------------------------ |
@@ -908,10 +1142,15 @@ Nếu muốn thu hồi cả image/cache: xem [vòng đời hạ tầng](infra/04
 - [ ] Nếu eligible: apply/status theo ID mới, đủ 69.052 visitor, raw score giữ nguyên, nhãn đúng ngưỡng, original pointer giữ nguyên.
 - [ ] Nếu không eligible: ghi lý do/mục tiêu không đạt, giữ original score, đánh dấu apply không thực hiện.
 - [ ] Test-stream-ml bảy test/bảy fault/cleanup đạt; replay 1.528 event/1.016 visitor và simulator chín event/ba visitor đạt, batch reconciliation/resource đầy đủ; đánh dấu pending nếu chưa chạy.
+- [ ] API venv/indexes sẵn sàng, health ready, `.env`/cổng đúng; API được giữ chạy riêng.
+- [ ] Mở Live Server, chọn run completed, xem đủ ba màn hình; hiểu scope live/run/batch, feature/score/ngưỡng và metrics lịch sử.
+- [ ] Test API/Mongo và smoke HTTP của replay completed được chạy/ghi nhận riêng; test JS cần Node và không thay browser acceptance.
+- [ ] Live hữu hạn hai lượt: 240 ACK/processed, report passed, batch reconciliation/resource đạt và web theo đúng snapshot.
+- [ ] Live liên tục: dừng/drain/resume không cộng trùng đã kiểm tra riêng; ghi pending nếu thiếu bằng chứng.
 - [ ] Các bước reuse ở mục 14 được đánh dấu riêng theo bằng chứng; policy apply lần hai cùng ID/count/fingerprint và ML streaming completed reuse.
 - [ ] Job có monitor đủ quan sát, không OOM/restart, hai worker/hai replica; không còn remote driver bị bỏ lại.
 - [ ] Biết cách reboot/start, đọc log, resume, `down` giữ volume và reset phá hủy dữ liệu.
 
 Các counts nêu trên áp dụng **đúng Retailrocket nguyên bản và cutoff mặc định**. Metric, latency, duration và ID trong artifact tham chiếu không phải cam kết cho máy/commit khác. Chất lượng mô hình cần được đánh giá lại từ report của người nhận, đặc biệt nếu đổi dataset, feature, sampling hoặc version runtime.
 
-Tra cứu sâu theo phần: [hạ tầng](infra/README.md), [dữ liệu](data/README.md), [streaming](streaming/README.md), [session/funnel](analytics/README.md), [ML và policy](ml/README.md). [Kế hoạch tổng thể](../IMPLEMENTATION_PLAN.md) còn mô tả các mục tiêu tương lai; dùng runbook này và mã hiện tại để xác định những gì đã chạy được.
+Tra cứu sâu theo phần: [hạ tầng](infra/README.md), [dữ liệu](data/README.md), [streaming](streaming/README.md), [session/funnel](analytics/README.md), [ML và policy](ml/README.md), [sử dụng web và đọc kết quả](serving/06-web-user-guide.md). [Kế hoạch tổng thể](../IMPLEMENTATION_PLAN.md) còn mô tả các mục tiêu tương lai; dùng runbook này và mã hiện tại để xác định những gì đã chạy được.

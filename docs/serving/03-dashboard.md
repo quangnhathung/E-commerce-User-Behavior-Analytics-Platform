@@ -1,6 +1,8 @@
 # 03 — Dashboard và cách chạy
 
-[← Mục lục](README.md)
+[← Mục lục](README.md) · [Hướng dẫn thao tác và đọc kết quả](06-web-user-guide.md)
+
+Tài liệu này là runbook cài/mở API và Live Server. Hướng dẫn từng nút, từng chỉ số, phân cụm/prediction và bài thực hành nằm trong [06 — Sử dụng web](06-web-user-guide.md); lộ trình từ clone ở [GETTING_STARTED](../GETTING_STARTED.md#serving).
 
 ## Chuẩn bị một lần
 
@@ -13,7 +15,7 @@ make api-setup
 make api-indexes
 ```
 
-`api-setup` tạo `services/.venv/` và cài dependency đã khóa; chạy lại giữ cấu trúc venv và xác minh dependency bằng `pip check`. Lần đầu cần internet. `api-indexes` dùng application account để tạo ba index phục vụ run list, minute series và prediction rank; không sửa snapshot hay xóa dữ liệu.
+`api-setup` tạo `services/.venv/` và cài dependency đã khóa; chạy lại giữ cấu trúc venv và xác minh dependency bằng `pip check`. Lần đầu cần internet. `api-indexes` dùng application account để tạo indexes phục vụ run list, minute series, prediction rank và session/feed live; không sửa snapshot hay xóa dữ liệu. Lệnh này chưa khởi động API; cần giữ `make api` chạy ở bước dưới.
 
 ## Mở API và Live Server
 
