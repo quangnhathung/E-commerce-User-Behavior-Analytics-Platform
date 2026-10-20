@@ -24,7 +24,6 @@ Kế hoạch dựa trên [đoạn chat bạn cung cấp](https://chatgpt.com/sha
 | Giao diện                | FastAPI + Streamlit + Plotly                     |
 | Triển khai               | Docker Compose trên một máy                      |
 
-
 **Mục đích cao nhất của đề tài là biến dữ liệu hành vi mua sắm thành thông tin giúp doanh nghiệp hiểu khách hàng và quyết định nên cải thiện việc bán hàng ở đâu.**
 
 Cụ thể, hệ thống cần trả lời ba câu hỏi:
@@ -536,21 +535,21 @@ Backlog được tính từ **Kafka end offsets trừ offsets của batch đã h
 
 ### Các lệnh vận hành cần cung cấp
 
-| Lệnh                | Mục đích                           |
-| ------------------- | ---------------------------------- |
-| `make up`           | Khởi động hạ tầng                  |
-| `make doctor`       | Kiểm tra dịch vụ và dependency     |
-| `make ingest`       | Tạo Bronze/Silver lịch sử          |
-| `make build-features` | Feature 7 ngày lịch sử            |
+| Lệnh                  | Mục đích                           |
+| --------------------- | ---------------------------------- |
+| `make up`             | Khởi động hạ tầng                  |
+| `make doctor`         | Kiểm tra dịch vụ và dependency     |
+| `make ingest`         | Tạo Bronze/Silver lịch sử          |
+| `make build-features` | Feature 7 ngày lịch sử             |
 | `make train-segments` | K-Means và đánh giá silhouette     |
 | `make segment-status` | Đọc model/profile hoặc một visitor |
-| `make test-ml`      | Kiểm thử ML trên cụm thật           |
-| `make prepare-demo` | Chuẩn bị lịch sử và dữ liệu replay |
-| `make stream`       | Chạy xử lý và scoring              |
-| `make replay`       | Phát dữ liệu demo                  |
-| `make simulate`     | Chạy kịch bản dữ liệu giả lập      |
-| `make test`         | Chạy kiểm thử                      |
-| `make down`         | Dừng dịch vụ, giữ dữ liệu          |
+| `make test-ml`        | Kiểm thử ML trên cụm thật          |
+| `make prepare-demo`   | Chuẩn bị lịch sử và dữ liệu replay |
+| `make stream`         | Chạy xử lý và scoring              |
+| `make replay`         | Phát dữ liệu demo                  |
+| `make simulate`       | Chạy kịch bản dữ liệu giả lập      |
+| `make test`           | Chạy kiểm thử                      |
+| `make down`           | Dừng dịch vụ, giữ dữ liệu          |
 
 Các lệnh tái lập artifact phải kiểm tra phiên bản/manifest và tránh âm thầm nhân đôi dữ liệu. Thao tác xóa volume chỉ nằm trong lệnh reset riêng.
 
