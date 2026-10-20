@@ -63,7 +63,7 @@ Tiếp tục sau khi phiên đã dừng:
 make live-demo LIVE_ID=demo-live-001
 ```
 
-Lệnh tiếp tục run con còn dở từ cursor/checkpoint. Không thay RATE hoặc các tham số đã khóa khi dùng lại LIVE_ID. Muốn kịch bản/tốc độ mới, tạo LIVE_ID mới.
+Lệnh tiếp tục run con còn dở từ cursor/checkpoint khi giữ nguyên mã và cấu hình của phiên. LIVE_ID khóa cả checksum archive, RATE và các tham số nguồn/model; cập nhật mã live cũng làm đổi checksum. Muốn dùng mã hoặc cấu hình mới, tạo LIVE_ID mới.
 
 Xem trạng thái mà không mở Spark application mới:
 
@@ -74,6 +74,29 @@ make live-status LIVE_ID=demo-live-001
 Một lượt dừng giữa nguồn có trạng thái `paused`, không được coi là đã đối soát toàn bộ 1.000 event. Report phiên có thể `passed=true` cho vòng đời dừng/drain và monitor thành công; `completed_segments` chỉ đếm lượt đã xử lý đủ nguồn và đối soát hoàn tất.
 
 Nếu dừng không được xác nhận, guard driver và producer cùng giữ token của phiên. Xác nhận/dừng đúng process group trước khi gỡ đúng marker theo [quy trình phục hồi](../streaming/04-testing-and-recovery.md). Không dùng Ctrl+C lần hai để thay cho việc đợi drain bình thường; lần hai kích hoạt cancel process group đang được quản lý.
+
+## Khắc phục lỗi `sleep length must be non-negative`
+
+Nếu traceback kết thúc ở `ecommerce_live/producer.py` với `ValueError: sleep length must be non-negative`, nguyên nhân là vòng điều tiết tốc độ đọc đồng hồ hai lần: deadline có thể hết giữa lúc kiểm tra và tính thời gian ngủ. Bản sửa kiểm tra yêu cầu dừng trước, tính thời gian còn lại đúng một lần, rồi chỉ ngủ khi thời gian đó dương. Khi deadline đã qua, producer tiếp tục gửi thay vì truyền số âm vào `sleep()`.
+
+Thông báo Spark `TaskKilled (Stage cancelled...)` có thể xuất hiện khi consumer được dọn sau lỗi producer. Đối chiếu traceback và `resources.json` để xác định nguyên nhân; bản thân thông báo hủy task không chứng minh hết RAM.
+
+Sau khi áp dụng bản sửa, kiểm tra offline:
+
+```bash
+make test-live
+make test
+```
+
+Nếu phiên lỗi là `demo-live-001`, chạy phiên mới để sử dụng checksum mới:
+
+```bash
+make live-demo LIVE_ID=demo-live-002 RATE=5
+```
+
+Chọn `demo-live-002` trong bộ chọn **Phiên live** trên web. Giữ nguyên request, log, checkpoint và dữ liệu của `demo-live-001` để đối chiếu. Không sửa `code_sha256` trong request cũ để vượt kiểm tra tương thích. Nếu ID mới đã tồn tại với mã khác, chọn một ID chưa dùng.
+
+Không cần build lại image, khởi tạo lại hạ tầng hoặc train lại model cho bản sửa Python này: `app/` được mount vào `spark-client`, và lệnh live đóng gói mã hiện tại khi khởi chạy. Sau khi phiên mới đã dừng/drain bình thường, chạy lại cùng LIVE_ID với cùng mã/cấu hình để resume.
 
 ## Quy mô và bộ nhớ
 
@@ -125,12 +148,12 @@ make test-api-offline
 make test
 ```
 
-`test-live` là kiểm thử offline cho generator, wire, fingerprint archive, ACK/retry, buffer, fencing, backpressure, vòng đời qua các boundary giả lập, stop/resume, checkpoint và wrapper timeout. Nó không thay thế Spark/Kafka/Mongo thật. Test API offline sử dụng adapter; browser fixture nếu có cũng không chứng minh streaming đã chạy.
+`test-live` là kiểm thử offline cho generator, wire, fingerprint archive, ACK/retry, buffer, fencing, backpressure, vòng đời qua các boundary giả lập, stop/resume, checkpoint và wrapper timeout. Các test pacing kiểm tra deadline bị vượt trong lúc đọc yêu cầu dừng, đúng deadline, RATE 1/5/10, thức dậy muộn và pause/resume giữ ACK cursor. Nó không thay thế Spark/Kafka/Mongo thật. Test API offline sử dụng adapter; browser fixture nếu có cũng không chứng minh streaming đã chạy.
 
 Nghiệm thu hai lượt thật với model đã có, dùng LIVE_ID riêng:
 
 ```bash
-make live-demo LIVE_ID=live-check-001 RATE=5 LIVE_EVENTS=120 LIVE_VISITORS=24 LIVE_ITEMS=12 LIVE_SEGMENTS=2
+make live-demo LIVE_ID=live-check-002 RATE=5 LIVE_EVENTS=120 LIVE_VISITORS=24 LIVE_ITEMS=12 LIVE_SEGMENTS=2
 ```
 
 Đợi hai dòng `LIVE_SEGMENT_RESULT` có `passed=true`, `batch_reconciled=true`, backlog 0 và cuối phiên `completed_segments=2`, `completed_events=240`. Resource flags cần `no_oom_or_restart=true`, `memory_observations_complete=true`. Trên web thấy feed tăng, trạng thái ACK/processed thay đổi, pointer tự chuyển run con và tổng phiên không giảm.
