@@ -132,6 +132,68 @@ class APITests(unittest.TestCase):
         self.db['purchase_models'].update_one({'_id':models['purchase']['version']},{'$set':{'status':'prepared'}})
         self.assertEqual(503,self.get('models').status_code)
 
+    def live_fixture(self, **changes):
+        from serving.contracts import now
+        from ecommerce_streaming.contracts import digest
+        request={**self.config,'rate':5,'events_per_segment':9}
+        row={'_id':'live-fixture','live_id':'live-fixture','base':'/ecommerce','request':request,
+            'request_sha256':digest(request),'owner':'private-owner','heartbeat_at':now(),'created_at':now(),
+            'status':'running','active_run_id':'web-fixture','last_snapshot_run_id':None,'segment_index':1,
+            'completed_segments':0,'completed_events':0,'acknowledged_events':9,**changes}
+        self.db['live_sessions'].insert_one(row)
+        return row
+
+    def test_live_sessions_are_read_only_local_and_hide_ownership(self):
+        self.live_fixture()
+        self.live_fixture(_id='hidden',live_id='hidden',base='/ecommerce/_tests/live')
+        response=self.client.get('/api/v1/live/sessions')
+        self.assertEqual(200,response.status_code)
+        self.assertEqual(['live-fixture'],[r['live_id'] for r in response.json()['data']])
+        self.assertNotIn('private-owner',response.text)
+        self.assertEqual(404,self.client.get('/api/v1/live/sessions/hidden').status_code)
+        self.assertEqual(405,self.client.post('/api/v1/live/sessions/live-fixture').status_code)
+        self.assertEqual(422,self.client.get('/api/v1/live/sessions/bad%20id').status_code)
+
+    def test_live_heartbeat_is_stale_but_stopped_is_not_running(self):
+        self.live_fixture(heartbeat_at='2026-10-20T00:00:00.000Z')
+        with mock.patch('serving.live.now',return_value='2026-10-20T00:00:21.000Z'):
+            data=self.client.get('/api/v1/live/sessions/live-fixture').json()['data']
+            self.assertEqual('stale',data['status'])
+            self.db['live_sessions'].update_one({'_id':'live-fixture'},{'$set':{'status':'stopped'}})
+            self.assertEqual('stopped',self.client.get('/api/v1/live/sessions/live-fixture').json()['data']['status'])
+
+    def test_live_rotation_retains_previous_snapshot_and_counts_once(self):
+        from ecommerce_streaming.contracts import digest
+        self.live_fixture(last_snapshot_run_id='web-fixture',completed_segments=1,completed_events=9,segment_index=2,active_run_id='next')
+        row=self.db['stream_runs'].find_one({'_id':'web-fixture'})
+        row['_id']=row['run_id']='next';row['config']['run_id']='next';row['config_sha256']=digest(row['config'])
+        row['committed_batch_id']=-1;row['producer']['last_seq']=-1
+        self.db['stream_runs'].insert_one(row)
+        data=self.client.get('/api/v1/live/sessions/live-fixture').json()['data']
+        self.assertEqual('web-fixture',data['snapshot_run_id']);self.assertEqual(1,data['snapshot_batch_id'])
+        self.assertEqual(9,data['processed_events']);self.assertEqual(9,data['acknowledged_events'])
+        self.db['live_sessions'].update_one({'_id':'live-fixture'},{'$set':{'active_run_id':'web-fixture','segment_index':1}})
+        self.assertEqual(9,self.client.get('/api/v1/live/sessions/live-fixture').json()['data']['processed_events'])
+
+    def test_live_events_cursor_gap_and_ack_is_not_processed(self):
+        self.live_fixture()
+        for sequence in range(100,105):
+            self.db['live_events'].insert_one({'_id':str(sequence),'live_id':'live-fixture','sequence':sequence,
+                'run_id':'web-fixture','segment_index':1,'event_id':str(sequence),'visitor_id':'0001','item_id':'10',
+                'event_type':'view','event_time':'2015-09-18T00:00:00.000Z','emitted_at':'2026-10-20T00:00:00.000Z',
+                'acked_at':'2026-10-20T00:00:00.001Z','partition':'0','next_offset':sequence-99})
+        base='/api/v1/live/sessions/live-fixture/events'
+        tail=self.client.get(base+'?limit=2').json()
+        self.assertEqual([103,104],[r['sequence'] for r in tail['data']]);self.assertEqual(104,tail['next_after'])
+        self.assertEqual('acked',tail['data'][0]['processing_status'])
+        page=self.client.get(base+'?after=99&limit=2').json()
+        self.assertEqual([100,101],[r['sequence'] for r in page['data']])
+        self.assertEqual('processed',page['data'][0]['processing_status']);self.assertEqual('0001',page['data'][0]['visitor_id'])
+        self.assertEqual([],self.client.get(base+'?after=104').json()['data'])
+        self.assertTrue(self.client.get(base+'?after=0&limit=2').json()['gap'])
+        self.assertEqual(422,self.client.get(base+'?limit=201').status_code)
+        self.assertEqual(422,self.client.get(base+'?after=-2').status_code)
+
     def test_backend_failure_is_redacted(self):
         with mock.patch.object(self.client.app.state.repository,'context',side_effect=RuntimeError('secret-password')):
             response=self.get('overview')

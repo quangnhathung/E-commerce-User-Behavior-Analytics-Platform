@@ -4,17 +4,19 @@ import logging
 import os
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Query, Request
+from fastapi import Depends, FastAPI, Path, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .contracts import ServingError, utc
 from .repository import Repository
+from . import live
 
 RunID = Annotated[str, Query(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")]
 BatchID = Annotated[int | None, Query(ge=0)]
 Limit = Annotated[int, Query(ge=1, le=200)]
+LiveID = Annotated[str, Path(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$")]
 
 
 def create_app(database=None):
@@ -83,6 +85,18 @@ def create_app(database=None):
     @app.get("/api/v1/runs")
     def runs(repo: Repo, limit: Limit = 50, after: str | None = None):
         return repo.runs(limit, after)
+
+    @app.get("/api/v1/live/sessions")
+    def live_sessions(repo: Repo):
+        return live.sessions(repo)
+
+    @app.get("/api/v1/live/sessions/{live_id}")
+    def live_session(repo: Repo, live_id: LiveID):
+        return {"data": live.session(repo, live_id)}
+
+    @app.get("/api/v1/live/sessions/{live_id}/events")
+    def live_events(repo: Repo, live_id: LiveID, after: Annotated[int | None, Query(ge=-1)] = None, limit: Limit = 100):
+        return live.events(repo, live_id, after, limit)
 
     @app.get("/api/v1/pipeline")
     def pipeline(ctx: Ctx):

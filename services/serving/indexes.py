@@ -8,6 +8,8 @@ def apply(db):
     db.stream_ml_predictions.create_index([("run_id", 1), ("batch_id", 1),
         ("purchase_score", -1), ("visitor_id", 1)], name="web_prediction_rank")
     db.kpi_minute.create_index([("run_id", 1), ("batch_id", 1), ("window_start", 1)], name="web_minutes")
+    db.live_sessions.create_index([("base", 1), ("created_at", -1)])
+    db.live_events.create_index([("live_id", 1), ("sequence", 1)], unique=True)
     print("Serving indexes verified; no snapshot content changed.")
 
 
