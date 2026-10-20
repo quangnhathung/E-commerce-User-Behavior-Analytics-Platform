@@ -10,9 +10,10 @@ make test-web
 make test-api-offline
 ```
 
-- `make test`: hồi quy hạ tầng/app; không cần dependency serving. Lượt đã kiểm có 38 + 187 test, 7 HTTP skipped do sandbox.
-- `test-web`: 13 test Node cho client, ngữ cảnh gọi native `fetch`, snapshot pinning, đổi run/filter, phân trang, visitor leading zero, error recovery, escape và render ba màn hình. DOM adapter nhỏ kiểm tra controller; không thay cho kiểm tra layout trong browser.
-- `test-api-offline`: 19 test FastAPI HTTP với database adapter, cần `make api-setup` trước. Không kết nối MongoDB.
+- `make test`: hồi quy hạ tầng/app; không cần dependency serving. Lượt đã kiểm có 38 + 207 test, 7 HTTP skipped do sandbox; 20 test live nằm trong suite ứng dụng.
+- `test-web`: 15 test Node cho client/feed live, ngữ cảnh gọi native `fetch`, snapshot pinning, đổi run/filter, phân trang, visitor leading zero, error recovery, escape và render ba màn hình. DOM adapter nhỏ kiểm tra controller; không thay cho kiểm tra layout trong browser.
+- `test-api-offline`: 23 test FastAPI HTTP với database adapter, cần `make api-setup` trước. Không kết nối MongoDB.
+- `test-live`: 20 test offline cho nguồn live, ACK, buffer, owner fencing, backpressure, chuyển lượt, pause/resume, guard và vòng đời controller. Nghiệm thu Kafka/Spark thật theo [hướng dẫn live](05-live-demo.md).
 
 Test API gồm: run list ẩn namespace test, config/published snapshot, batch tương lai, pointer tiến, cursor ràng buộc filter/batch, leading zero, CORS Live Server, thời gian có múi giờ, missing prediction/funnel product, pinned model, empty cluster và error redaction.
 
@@ -24,7 +25,7 @@ Cụm MongoDB đang chạy; chưa cần giữ `make api` vì test tạo app tron
 make test-api
 ```
 
-Lệnh chạy 19 case offline và 19 case HTTP/Mongo thật. Fixture tạo collection prefix `_webtest_<UUID>_` trong database ứng dụng, chỉ drop các collection thuộc chính UUID và xác nhận cleanup. Không xóa collection nghiệp vụ hoặc reset volume.
+Lệnh chạy 23 case offline và 23 case HTTP/Mongo thật. Fixture tạo collection prefix `_webtest_<UUID>_` trong database ứng dụng, chỉ drop các collection thuộc chính UUID và xác nhận cleanup. Không xóa collection nghiệp vụ hoặc reset volume.
 
 Report/log: `artifacts/serving/test-api.json`, `test-api.log`; offline có `test-api-offline.*`. Chỉ nhận `passed=true` khi command exit 0, có kết quả suite và không có skipped case. Test interrupted/failed không được coi là đã nghiệm thu cleanup.
 

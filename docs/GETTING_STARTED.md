@@ -688,6 +688,8 @@ Giữ terminal API chạy. Trong VS Code, mở `web/index.html` → **Open with 
 
 Muốn xem cập nhật mới, prepare một RUN_ID simulator mới rồi chạy consumer/producer ở các terminal khác như mục 12. API/Live Server chạy cùng streaming được; các Spark job vẫn chạy tuần tự. Kiểm tra bằng `make test-api`, `make test-web` và `make smoke-web RUN_ID=<run-completed>`; Node chỉ dùng cho test JS. Hướng dẫn chi tiết, đổi cổng, test offline và cleanup: [docs/serving/](serving/README.md).
 
+Để demo nhiều event liên tục, sau khi API đã nạp mã mới chạy `make live-demo LIVE_ID=demo-live-001 RATE=5`. Chọn phiên live trên web và bật **Theo dõi live**; lệnh tự quản lý cả consumer và producer, nối các lượt 1.000 event cho đến khi Ctrl+C. Dùng cùng LIVE_ID để tiếp tục; phiên mới tạo kịch bản khác. Feed event được đọc mỗi giây; KPI/dự đoán vẫn chờ Spark commit. Xem [hướng dẫn live, tham số và nghiệm thu](serving/05-live-demo.md).
+
 <a id="artifacts"></a>
 
 ## 13. Đọc artifact, selector và theo dõi

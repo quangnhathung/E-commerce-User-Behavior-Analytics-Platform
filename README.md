@@ -177,7 +177,9 @@ Giữ terminal API hoạt động. Mở `web/index.html` trong VS Code → **Ope
 
 Frontend dùng HTML/CSS/JS và SVG thuần; không cần Node/npm để chạy. FastAPI bind `127.0.0.1:8000`, đọc MongoDB qua cổng host hiện có. Virtualenv riêng ở `services/.venv/`; không thêm container/image hoặc thay Compose. Tài liệu cài đặt, API, source guide, test và xử lý lỗi: [docs/serving/](docs/serving/README.md).
 
-`make test-web` chạy 12 test JS (cần Node 18+); `make test-api-offline` chạy 19 test HTTP offline. `make test-api` chạy thêm 19 case Mongo thật; `make smoke-web RUN_ID=...` đối chiếu API với một run đã hoàn tất. Live serving/browser đang chờ nghiệm thu do phiên công cụ bị giới hạn DNS/Docker/socket Chrome.
+`make test-web` chạy 15 test JS (cần Node 18+); `make test-api-offline` chạy 23 test HTTP offline. `make test-api` chạy thêm 23 case Mongo thật; `make smoke-web RUN_ID=...` đối chiếu API với một run đã hoàn tất.
+
+Demo nhiều dữ liệu và chạy đến khi dừng: `make live-demo LIVE_ID=demo-live-001 RATE=5`. Một lệnh quản lý consumer/producer, mặc định 1.000 event/lượt và tối đa 200 visitor/100 sản phẩm. Web có feed Kafka ACK mỗi giây, theo dõi run con và snapshot Spark; Ctrl+C dừng/drain, chạy lại cùng LIVE_ID để tiếp tục. Xem [demo live và nghiệm thu](docs/serving/05-live-demo.md). Chế độ live liên tục đã có kiểm thử offline và browser fixture; chạy Spark/Kafka thật qua nhiều lượt còn chờ nghiệm thu do quyền Docker socket trong phiên công cụ.
 
 ## Dịch vụ và phiên bản
 

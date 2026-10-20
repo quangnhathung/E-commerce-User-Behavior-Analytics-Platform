@@ -58,6 +58,8 @@ Liên kết Spark/HDFS UI lấy cổng mặc định hoặc cấu hình công kh
 
 ## Xem dữ liệu thay đổi trực tiếp
 
+Để demo nhiều event và chạy đến khi dừng, dùng chế độ mới [live-demo](05-live-demo.md): `make live-demo LIVE_ID=demo-live-001 RATE=5`. Web có feed sau Kafka ACK mỗi giây và theo dõi snapshot của các run con tự động. Phần dưới là kịch bản kiểm thử nhỏ, cố định 9 event/3 visitor.
+
 Run cũ completed chỉ phục vụ dữ liệu đã lưu. Để xem cập nhật, tạo run mới, ví dụ:
 
 ```bash
