@@ -65,7 +65,7 @@ def upload_spec(path, spec):
 
 
 def launch(action, specification, directory, *, stdin=None, quiet=False, profile="streaming",
-           entry="streaming.py", result_prefix="STREAMING_RESULT=", spark_job=None, monitor=None):
+           entry="streaming.py", result_prefix="STREAMING_RESULT=", spark_job=None, monitor=None, wrapper_action="run", monitor_factory=None, producer_owned=False):
     spark_job = action in SPARK_ACTIONS if spark_job is None else spark_job
     monitored = action in ("stream", "test-stream", "analyze-behavior", "test-behavior") if monitor is None else monitor
     token = uuid.uuid4().hex
@@ -73,7 +73,7 @@ def launch(action, specification, directory, *, stdin=None, quiet=False, profile
     archive = f"/tmp/ecommerce-{tag}-{token}.zip"
     spec_path = f"/tmp/ecommerce-{tag}-{token}.json"
     process, stopped = None, False
-    monitor = Monitor() if monitored else None
+    monitor = (monitor_factory or Monitor)() if monitored else None
     try:
         packed = json.loads(infra.execute(infra.compose("exec", "-T", "spark-client", "python3", "/opt/app/package_code.py",
                             "--output", archive, "--profile", profile), capture=True, timeout=30))
@@ -81,7 +81,9 @@ def launch(action, specification, directory, *, stdin=None, quiet=False, profile
         upload_spec(spec_path, spec)
         command = (["spark-submit", "--deploy-mode", "client", "--py-files", archive]
                    if spark_job else ["python3"])
-        args = infra.compose("exec", "-T", "spark-client", "python3", "/opt/app/run_job.py", "run", token,
+        if wrapper_action not in ("run", "run-live"):
+            raise ValueError("Invalid managed wrapper action")
+        args = infra.compose("exec", "-T", "spark-client", "python3", "/opt/app/run_job.py", wrapper_action, token,
             *command, "/opt/app/jobs/" + entry, action, "--spec-file", spec_path,
             "--code-archive", archive, "--code-sha256", packed["sha256"])
         directory.mkdir(parents=True, exist_ok=True)
@@ -98,16 +100,20 @@ def launch(action, specification, directory, *, stdin=None, quiet=False, profile
     def stop_remote():
         marker = (infra.ARTIFACTS / "driver-unconfirmed.json" if spark_job else
                   ARTIFACTS / "producer-unconfirmed.json" if action == "replay" else None)
+        markers = [marker] if marker is not None else []
+        if producer_owned and spark_job:
+            markers.append(ARTIFACTS / "producer-unconfirmed.json")
         try:
             infra.execute(infra.compose("exec", "-T", "spark-client", "python3", "/opt/app/run_job.py", "cancel", token),
                           capture=True, timeout=30)
         except BaseException:
-            if marker is not None:
+            for marker in markers:
                 atomic_json(marker, {"token": token, "archive": archive, "spec_file": spec_path,
                                      "action": action, "log": str(log_path.relative_to(ROOT))})
             raise
-        if marker is not None and marker.exists() and json.loads(marker.read_text()).get("token") == token:
-            marker.unlink()
+        for marker in markers:
+            if marker.exists() and json.loads(marker.read_text()).get("token") == token:
+                marker.unlink()
 
     try:
         if monitor is not None:

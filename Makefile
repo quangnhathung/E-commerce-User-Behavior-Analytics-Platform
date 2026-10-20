@@ -5,6 +5,7 @@ export AS_OF FEATURE_SNAPSHOT_ID MODEL_VERSION VISITOR_ID
 export PURCHASE_DATASET_ID SCORE_RUN_ID
 export POLICY_VERSION
 export DEMO_SOURCE SEGMENT_MODEL_VERSION PURCHASE_MODEL_VERSION
+export LIVE_ID LIVE_EVENTS LIVE_VISITORS LIVE_ITEMS LIVE_SEGMENTS
 .PHONY: setup build up doctor smoke persistence-test ps logs down reset config test versions ingest test-data prepare-demo stream replay stream-status test-stream analyze-behavior behavior-status test-behavior
 
 setup build up doctor smoke persistence-test ps logs down reset config versions:
@@ -39,3 +40,10 @@ prepare-ml-demo stream-ml replay-ml simulate-ml stream-ml-status test-stream-ml:
 .PHONY: api-setup api api-indexes test-api test-api-offline test-web smoke-web
 api-setup api api-indexes test-api test-api-offline test-web smoke-web:
 	@$(PYTHON) services/manage.py $@
+
+.PHONY: live-demo live-status live-stop test-live
+live-demo live-status live-stop:
+	@$(PYTHON) app/live_manage.py $@
+
+test-live:
+	@$(PYTHON) -m unittest discover -s app/tests -p 'test_live*.py' -v
