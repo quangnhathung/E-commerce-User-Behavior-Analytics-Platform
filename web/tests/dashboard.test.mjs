@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { APIClient, APIError, escapeHTML, number, table, localApiUrl } from "../core.mjs";
-import { renderOverview, renderPredictions, renderPipeline, lineChart } from "../views.mjs";
+import { renderOverview, renderPredictions, renderPipeline, lineChart, renderModelEvaluation,
+  silhouetteChart, candidateMetricsChart, thresholdChart, confusionMatrix, featureImportanceChart } from "../views.mjs";
 import { feedTable, mergeEvents, LivePanel } from "../live.mjs";
 
 function fixture() {
@@ -187,6 +188,42 @@ test("all three screens render real numeric values without external chart librar
   const pipeline = renderPipeline(await client.bundle("demo", "pipeline"));
   assert.ok(pipeline.includes("spark-worker-2"));
   assert.ok(pipeline.includes("28,303") || pipeline.includes("28,3"));
+});
+
+test("ML evaluation charts use published report fields and keep model caveats visible", () => {
+  const models = { bindings: { selected_k: 2, threshold: .96, original_threshold: .93 },
+    segments: { report: { selected_k: 2, candidates: [{ k: 2, valid: true, silhouette: .84 }, { k: 3, valid: true, silhouette: .71 }] } },
+    purchase: { report: { selection: { threshold: .93, candidates: [
+      { parameters: { numTrees: 50, maxDepth: 5 }, metrics: { pr_auc: .18, roc_auc: .91 } },
+      { parameters: { numTrees: 100, maxDepth: 8 }, metrics: { pr_auc: .17, roc_auc: .92 } }],
+      threshold_grid: [{ threshold: 0, precision: .05, recall: 1, f1: .1 }, { threshold: .93, precision: .44, recall: .21, f1: .28 },
+        { threshold: .96, precision: .74, recall: .14, f1: .24 }], feature_importance: { view_count_7d: .42, cart_count_7d: .31 } },
+      evaluation: { test: { pr_auc: .18, roc_auc: .91, precision: .44, recall: .21, f1: .28, precision_at_1pct: .3, tp: 154, fp: 199, fn: 572, tn: 2379625 } } } },
+    policy: { report: { evaluation: { threshold: .96, eligible: true, fresh_holdout: false,
+      test: { pr_auc: .18, roc_auc: .91, precision: .74, recall: .14, f1: .23, precision_at_1pct: .31,
+        tp: 99, fp: 35, fn: 627, tn: 2379789 } } } } };
+  const html = renderModelEvaluation(models, models.bindings, [{ cluster_id: 0, count: 2 }, { cluster_id: 1, count: 1 }]);
+  assert.ok(html.includes("Silhouette theo K"));
+  assert.ok(html.includes("So sánh candidate Random Forest"));
+  assert.ok(html.includes("Precision, recall và F1 theo threshold"));
+  assert.ok(html.includes("Confusion matrix"));
+  assert.ok(html.includes("Feature importance"));
+  assert.ok(html.includes("Policy eligible"));
+  assert.ok(html.includes("0.96") || html.includes("0,96"));
+  assert.ok(html.includes("TP") && html.includes("99"));
+  assert.ok(html.includes("<svg"));
+  assert.ok(!html.includes("undefined") && !html.includes("NaN"));
+});
+
+test("ML evaluation chart empty states do not fabricate metrics", () => {
+  assert.ok(silhouetteChart([]).includes("Chưa có silhouette"));
+  assert.ok(candidateMetricsChart([]).includes("Chưa có candidate RF"));
+  assert.ok(thresholdChart([]).includes("Chưa có threshold grid"));
+  assert.ok(confusionMatrix({}).includes("Chưa có confusion matrix"));
+  assert.ok(featureImportanceChart({}).includes("Chưa có feature importance"));
+  const html = renderModelEvaluation({ segments: { report: {} }, purchase: { report: {} }, policy: { report: {} } }, {}, []);
+  assert.ok(html.includes("Chưa có silhouette"));
+  assert.ok(!html.includes("NaN") && !html.includes("undefined"));
 });
 
 test("waiting and empty chart states do not fabricate zero metrics", () => {
