@@ -12,6 +12,7 @@ Tài liệu cho **E-commerce User Behavior Analytics Platform** được tổ ch
 | [Session và funnel](analytics/README.md) | Phân tích lịch sử và streaming, phiên 30 phút, funnel tổng quan/sản phẩm, snapshot HDFS/MongoDB, vận hành và kiểm thử. |
 | [Machine Learning](ml/README.md) | Feature 7 ngày, K-Means; nhãn 24 giờ, RF batch/policy, ML streaming với replay/simulator, snapshot và nghiệm thu. |
 | [API và dashboard local](serving/README.md) | FastAPI trên host; HTML/CSS/JS qua Live Server; ba màn hình, demo liên tục, feed mỗi giây, snapshot và kiểm thử. |
+| [Bản đồ sơ đồ trực quan](diagrams/README.md) | Sơ đồ Mermaid về kiến trúc, dữ liệu, training K-Means/RF, streaming ML, live demo, snapshot API và cách đọc kết quả. |
 | [Kế hoạch triển khai tổng thể](../IMPLEMENTATION_PLAN.md) | Mục tiêu, luồng dữ liệu, phân tích hành vi, Machine Learning, API/dashboard và các mốc triển khai. |
 
 Bắt đầu từ [hướng dẫn máy mới](GETTING_STARTED.md) để chạy đầy đủ; khi đã mở được ứng dụng, chuyển sang [hướng dẫn web](serving/06-web-user-guide.md). [README gốc](../README.md) dành cho tra cứu nhanh; [mục lục hạ tầng](infra/README.md) giải thích sâu về dựng/vận hành cụm.

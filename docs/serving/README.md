@@ -1,6 +1,6 @@
 # API local và dashboard HTML/CSS/JS
 
-[← Tài liệu dự án](../README.md) · [Chạy từ đầu](../GETTING_STARTED.md#serving) · [Sử dụng web và đọc kết quả](06-web-user-guide.md)
+[← Tài liệu dự án](../README.md) · [Bản đồ sơ đồ](../diagrams/README.md) · [Chạy từ đầu](../GETTING_STARTED.md#serving) · [Sử dụng web và đọc kết quả](06-web-user-guide.md)
 
 Phần này đưa snapshot của **replay/simulator ML** lên trình duyệt. Frontend là HTML/CSS/JavaScript thuần, mở bằng **Live Server của VS Code**. FastAPI chạy trực tiếp trên host và đọc MongoDB đang có trong Docker. Không có image web, container web hoặc bước build frontend.
 

@@ -1,6 +1,6 @@
 # Hướng dẫn chạy toàn bộ dự án trên máy mới
 
-[← Mục lục tài liệu](README.md) · [README dự án](../README.md) · [Sử dụng web và đọc kết quả](serving/06-web-user-guide.md)
+[← Mục lục tài liệu](README.md) · [README dự án](../README.md) · [Bản đồ sơ đồ](diagrams/README.md) · [Sử dụng web và đọc kết quả](serving/06-web-user-guide.md)
 
 Tài liệu này dành cho developer nhận repository và tự chạy từ đầu: cài công cụ, chuẩn bị Retailrocket, dựng Docker Compose, ingest, phân tích lịch sử/streaming, K-Means, Random Forest, policy precision, ML streaming có simulator và dashboard HTML/CSS/JS qua Live Server. Không cần `.env`, model, volume hoặc thư mục `artifacts/` của người bàn giao.
 

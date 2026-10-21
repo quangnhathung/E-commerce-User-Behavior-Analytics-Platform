@@ -1,6 +1,6 @@
 # Feature hành vi, K-Means và dự đoán mua hàng
 
-[← Tài liệu dự án](../README.md)
+[← Tài liệu dự án](../README.md) · [Bản đồ sơ đồ](../diagrams/README.md)
 
 Phần ML chuyển Silver lịch sử thành tám đặc trưng hành vi, phân nhóm visitor bằng K-Means và dự đoán việc mua trong 24 giờ bằng Random Forest. Kết quả có model version, snapshot HDFS, metadata/lookup MongoDB và kiểm tra khi chạy lại. RF batch/policy và ML streaming đã có artifact runtime; live suite, replay, simulator và completed reuse ML đã đạt. [API/dashboard local](../serving/README.md) đọc snapshot ML thật; thao tác và cách hiểu cluster/score/nhãn nằm ở [hướng dẫn web](../serving/06-web-user-guide.md).
 
