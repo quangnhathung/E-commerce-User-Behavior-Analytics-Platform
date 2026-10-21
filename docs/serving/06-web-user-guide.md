@@ -330,6 +330,21 @@ Nhãn 0 nghĩa chưa được đưa vào nhóm dự đoán mua theo ngưỡng, k
 
 Policy tham chiếu 0,96 có precision test lịch sử khoảng **73,88%**, recall **13,64%**; đây là **đánh giá lại trên test từng được quan sát**, `fresh_holdout=false`. Không dùng nó làm precision hiện tại của simulator hoặc cam kết cho dữ liệu tương lai. Cohort chưa có positive prediction không đủ để suy ra precision bằng 0% hoặc 100%.
 
+### 7.4. Đọc các biểu đồ đánh giá mô hình
+
+Panel **Đánh giá mô hình** có các biểu đồ lấy từ report đã publish của đúng run/batch:
+
+| Biểu đồ | Cách đọc |
+| --- | --- |
+| **Silhouette theo K** | So sánh các candidate K-Means. Cột được đánh dấu là K đang dùng; giá trị cao hơn cho thấy các cụm tách nhau tốt hơn trong cohort đó. Đây không phải accuracy dự đoán mua. |
+| **Phân bố kích thước cluster** | So sánh số visitor của mỗi cụm trong snapshot hiện tại. Dùng cùng bảng feature để hiểu cụm đông/ít và đặc điểm hành vi. |
+| **Candidate Random Forest** | Đối chiếu PR-AUC và ROC-AUC của bốn cấu hình trên validation. PR-AUC cần được xem cùng mức mất cân bằng nhãn. |
+| **Feature importance** | Xem đóng góp tương đối của tám feature trong winner. Đây là mức quan trọng của model, không chứng minh quan hệ nhân quả. |
+| **Precision / Recall / F1 theo threshold** | Đọc trade-off khi ngưỡng thay đổi. Marker `RF` là ngưỡng gốc, marker `Policy` là ngưỡng đang áp dụng. Threshold cao thường làm nhóm dự đoán nhỏ hơn; cần đọc số liệu thực tế trên đường biểu diễn. |
+| **Confusion matrix** | `TP` là dự đoán mua đúng, `FP` là báo nhầm, `FN` là bỏ sót và `TN` là không mua đúng. Matrix lấy test policy; nếu policy chưa có test thì fallback về test RF gốc. |
+
+Các metric không có trong report sẽ hiển thị trạng thái **Chưa có dữ liệu**, không tự đổi thành 0. Nếu policy chưa eligible, panel vẫn cho xem metric và lý do nhưng không được hiểu là policy đã đạt mục tiêu. Biểu đồ lịch sử không đo precision của event đang stream.
+
 Phía dưới có version K-Means, Random Forest và policy; mở **Tham số và báo cáo mô hình đã khóa** để xem report chi tiết. Model đang chọn trong latest pointer của CLI không tự thay model của run cũ. Nội dung học sâu hơn: [feature](../ml/01-features.md), [dự đoán 24 giờ](../ml/05-purchase-data.md), [policy](../ml/09-purchase-policy.md).
 
 <a id="pipeline"></a>

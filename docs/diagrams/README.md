@@ -319,6 +319,53 @@ stateDiagram-v2
 
 Retry cùng identity phải kiểm tra snapshot, manifest, checkpoint và source fingerprint. Không dùng một trạng thái `completed` của run khác để thay thế cho run đang kiểm tra.
 
+## 11. Đánh giá mô hình ML và biểu đồ trên web
+
+```mermaid
+%%{init: {"theme":"base","themeVariables":{"fontFamily":"Inter,Arial,sans-serif","primaryColor":"#e7efee","primaryTextColor":"#173638","primaryBorderColor":"#6f8583","lineColor":"#788987","secondaryColor":"#e9eee5","tertiaryColor":"#f0ebe3"}}}%%
+flowchart LR
+    SEG["K-Means report"] --> SIL["Candidate K + silhouette"]
+    SIL --> KCHART["Silhouette theo K"]
+    SEG --> CLUSTER["Cluster size + profile"]
+    CLUSTER --> CCHART["Phân bố cluster"]
+
+    RF["RF selection report"] --> AUC["PR-AUC + ROC-AUC<br/>theo candidate"]
+    AUC --> ACHART["Candidate comparison"]
+    RF --> GRID["101 threshold metrics"]
+    GRID --> TCHART["Precision / Recall / F1"]
+    RF --> IMP["Feature importance"]
+    IMP --> ICHART["Feature importance bars"]
+    EVAL["Test evaluation"] --> CM["TP / FP / FN / TN"]
+    CM --> MCHART["Confusion matrix"]
+
+    KCHART --> WEB["Dashboard<br/>Phân khúc & dự đoán"]
+    CCHART --> WEB
+    ACHART --> WEB
+    TCHART --> WEB
+    ICHART --> WEB
+    MCHART --> WEB
+
+    classDef report fill:#e9eeee,stroke:#6f8381,color:#203c3d;
+    classDef metric fill:#e9eee5,stroke:#77866a,color:#293729;
+    classDef chart fill:#eee9e0,stroke:#8b7b63,color:#40372b;
+    classDef ui fill:#e6e9ee,stroke:#66758a,color:#273142;
+    class SEG,RF,EVAL report;
+    class SIL,CLUSTER,AUC,GRID,IMP,CM metric;
+    class KCHART,CCHART,ACHART,TCHART,ICHART,MCHART chart;
+    class WEB ui;
+```
+
+| Biểu đồ | Dữ liệu | Ý nghĩa đọc kết quả |
+| --- | --- | --- |
+| Silhouette theo K | `segments.report.candidates` | K được chọn có silhouette cao nhất theo contract; silhouette không phải accuracy dự đoán mua. |
+| Candidate AUC | `purchase.report.selection.candidates` | So sánh khả năng xếp hạng của bốn cấu hình RF trên validation. |
+| Threshold trade-off | `selection.threshold_grid` | Thấy precision, recall và F1 thay đổi khi đổi threshold; marker tách RF gốc và policy. |
+| Feature importance | `selection.feature_importance` | Cho biết feature đóng góp tương đối vào winner; không phải quan hệ nhân quả. |
+| Confusion matrix | `policy.report.evaluation.test` hoặc test RF gốc | Đối chiếu TP, FP, FN, TN tại threshold đang đánh giá. |
+| Cluster size | `/segments` | Cho biết số visitor trong mỗi cụm của snapshot hiện tại. |
+
+Các biểu đồ test/policy là metric lịch sử từ cohort đã có nhãn. Prediction live chỉ có `purchase_score`, `cluster_id` và `predicted_label`; không dùng cohort live để tự suy ra precision/recall khi chưa có nhãn tương lai. `purchase_score` cũng không phải xác suất mua đã hiệu chuẩn.
+
 ## Liên kết tới tài liệu chi tiết
 
 - [Data contract và Silver](../data/README.md)

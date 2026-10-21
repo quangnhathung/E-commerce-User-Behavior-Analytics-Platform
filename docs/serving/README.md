@@ -11,7 +11,7 @@ Phần này đưa snapshot của **replay/simulator ML** lên trình duyệt. Fr
 | [03 — Dashboard và cách chạy](03-dashboard.md) | Cài API, mở Live Server, ba màn hình, replay/simulator và đổi cổng |
 | [04 — Kiểm thử và vận hành](04-testing-and-operations.md) | Test offline/live, smoke, bằng chứng, lỗi thường gặp và dừng/dọn |
 | [05 — Demo liên tục](05-live-demo.md) | Nhiều lượt dữ liệu, feed mỗi giây, backpressure, dừng và tiếp tục |
-| [06 — Hướng dẫn sử dụng web](06-web-user-guide.md) | Từng thao tác, KPI/funnel, cluster/prediction, pipeline, ví dụ kết quả và bài thực hành |
+| [06 — Hướng dẫn sử dụng web](06-web-user-guide.md) | Từng thao tác, KPI/funnel, cluster/prediction, biểu đồ đánh giá ML, pipeline, ví dụ kết quả và bài thực hành |
 
 ## Chạy nhanh trên máy đã có dữ liệu
 
