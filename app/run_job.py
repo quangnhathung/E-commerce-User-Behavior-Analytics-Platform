@@ -18,7 +18,7 @@ def process_start(pid):
         return None
 
 
-def run(token, command):
+def run(token, command, *, bounded=True):
     record = Path(f"/tmp/ecommerce-job-{token}.json")
     cancelled_record = Path(f"/tmp/ecommerce-cancel-{token}")
     child = None
@@ -49,7 +49,8 @@ def run(token, command):
     try:
         if cancelled or cancelled_record.exists():
             return 130
-        child = subprocess.Popen(["timeout", "--kill-after=15s", "1800s", *command], start_new_session=True)
+        child = subprocess.Popen((["timeout", "--kill-after=15s", "1800s"] if bounded else []) + command,
+                                 start_new_session=True)
         if cancelled or cancelled_record.exists():
             terminate(signal.SIGTERM, None)
         code = child.wait()
@@ -86,7 +87,7 @@ def cancel(token):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=("run", "cancel"))
+    parser.add_argument("action", choices=("run", "run-live", "cancel"))
     parser.add_argument("token")
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
@@ -97,4 +98,4 @@ if __name__ == "__main__":
     else:
         if not args.command:
             parser.error("Missing command")
-        sys.exit(run(args.token, args.command))
+        sys.exit(run(args.token, args.command, bounded=args.action != "run-live"))

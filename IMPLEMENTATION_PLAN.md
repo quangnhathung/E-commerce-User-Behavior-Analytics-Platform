@@ -1,5 +1,9 @@
 # Kế hoạch triển khai E-commerce User Behavior Analytics Platform trong 7 ngày
 
+> Cập nhật 20/10/2026: theo yêu cầu mới, dashboard dùng **HTML/CSS/JS thuần qua VS Code Live Server**, FastAPI chạy trực tiếp trên host, không đóng gói web container. Mã/API/ba màn hình, test offline và [tài liệu serving](docs/serving/README.md) đã có; test Mongo thật/browser/smoke serving còn pending. Các artifact ML đã được nghiệm thu gồm 7/7 live test, replay, simulator và hai lượt completed replay reuse. Lựa chọn UI local này thay cho Streamlit/Plotly trong lộ trình gốc bên dưới; xem runbook để chạy bản hiện tại.
+
+> Cập nhật 18/10/2026: đã triển khai [ML streaming có replay và simulator](docs/ml/10-streaming-scoring.md), khóa model/policy hiện có, giữ nguyên năm archive cũ và ngân sách 7 GiB. Có 26 offline test mới đạt; live suite/replay/simulator mới chưa nghiệm thu vì phiên công cụ bị từ chối Docker socket. Tổng offline 34 hạ tầng + 187 ứng dụng, 214 đạt/7 HTTP skipped. API/dashboard là giai đoạn tiếp theo. Trạng thái 17/10 bên dưới là mốc lịch sử của pipeline batch.
+
 > Cập nhật triển khai 17/10/2026: hạ tầng, ingestion, replay/KPI, session/funnel và K-Means đã có artifact nghiệm thu; RF batch đã chạy thành công lần đầu (7 test, 128 cutoff, model 50 cây/depth 5/ngưỡng 0,93, PR-AUC test 0,18172, score 69.052 visitor), còn chờ full-source reuse. **Policy precision ≥70%, recall ≥10%** có 26 offline test mới và artifact 5/5 live test đạt; ngưỡng 0,96 đạt precision test 73,88%/recall 13,64%, apply/reuse thành công trên 69.052 visitor, bốn predicted positive. Đây là reassessment trên test đã từng xem; full-source tune reuse chưa nghiệm thu. Scoring streaming/API/dashboard để sau. Ngân sách khoảng **7 GiB**, toàn bộ offline đã có lượt 188 test đạt, 7 HTTP skipped do giới hạn socket. Bắt đầu bằng [runbook máy mới](docs/GETTING_STARTED.md); xem [tài liệu hiện hành](docs/README.md), [K-Means](docs/ml/04-testing.md), [RF](docs/ml/08-purchase-testing.md) và [policy](docs/ml/09-purchase-policy.md). Các mốc ngày và hiện trạng ban đầu bên dưới là lộ trình gốc, không phải báo cáo hoàn thành.
 
 ## 1. Mục tiêu, hiện trạng và phạm vi đã chốt
@@ -19,7 +23,6 @@ Kế hoạch dựa trên [đoạn chat bạn cung cấp](https://chatgpt.com/sha
 | Dự đoán trên sự kiện mới | Có, theo micro-batch                             |
 | Giao diện                | FastAPI + Streamlit + Plotly                     |
 | Triển khai               | Docker Compose trên một máy                      |
-
 
 **Mục đích cao nhất của đề tài là biến dữ liệu hành vi mua sắm thành thông tin giúp doanh nghiệp hiểu khách hàng và quyết định nên cải thiện việc bán hàng ở đâu.**
 
@@ -532,21 +535,21 @@ Backlog được tính từ **Kafka end offsets trừ offsets của batch đã h
 
 ### Các lệnh vận hành cần cung cấp
 
-| Lệnh                | Mục đích                           |
-| ------------------- | ---------------------------------- |
-| `make up`           | Khởi động hạ tầng                  |
-| `make doctor`       | Kiểm tra dịch vụ và dependency     |
-| `make ingest`       | Tạo Bronze/Silver lịch sử          |
-| `make build-features` | Feature 7 ngày lịch sử            |
+| Lệnh                  | Mục đích                           |
+| --------------------- | ---------------------------------- |
+| `make up`             | Khởi động hạ tầng                  |
+| `make doctor`         | Kiểm tra dịch vụ và dependency     |
+| `make ingest`         | Tạo Bronze/Silver lịch sử          |
+| `make build-features` | Feature 7 ngày lịch sử             |
 | `make train-segments` | K-Means và đánh giá silhouette     |
 | `make segment-status` | Đọc model/profile hoặc một visitor |
-| `make test-ml`      | Kiểm thử ML trên cụm thật           |
-| `make prepare-demo` | Chuẩn bị lịch sử và dữ liệu replay |
-| `make stream`       | Chạy xử lý và scoring              |
-| `make replay`       | Phát dữ liệu demo                  |
-| `make simulate`     | Chạy kịch bản dữ liệu giả lập      |
-| `make test`         | Chạy kiểm thử                      |
-| `make down`         | Dừng dịch vụ, giữ dữ liệu          |
+| `make test-ml`        | Kiểm thử ML trên cụm thật          |
+| `make prepare-demo`   | Chuẩn bị lịch sử và dữ liệu replay |
+| `make stream`         | Chạy xử lý và scoring              |
+| `make replay`         | Phát dữ liệu demo                  |
+| `make simulate`       | Chạy kịch bản dữ liệu giả lập      |
+| `make test`           | Chạy kiểm thử                      |
+| `make down`           | Dừng dịch vụ, giữ dữ liệu          |
 
 Các lệnh tái lập artifact phải kiểm tra phiên bản/manifest và tránh âm thầm nhân đôi dữ liệu. Thao tác xóa volume chỉ nằm trong lệnh reset riêng.
 

@@ -1,12 +1,14 @@
 # E-commerce User Behavior Analytics Platform
 
-Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Mã hiện tại gồm hạ tầng Docker, ingestion Retailrocket CSV → Bronze → Silver, replay Kafka, streaming KPI, session/funnel, feature 7 ngày/K-Means và Random Forest dự đoán mua hàng theo batch. Scoring streaming, API và dashboard thuộc các giai đoạn tiếp theo.
+Nền tảng phân tích hành vi thương mại điện tử trên Kafka, Spark, HDFS và MongoDB. Mã hiện tại gồm hạ tầng Docker, ingestion Retailrocket CSV → Bronze → Silver, replay Kafka, streaming KPI, session/funnel, feature 7 ngày/K-Means, Random Forest batch và ML streaming có policy precision. FastAPI chạy trên host, dashboard HTML/CSS/JS mở bằng Live Server; đã đọc được kết quả thật và có nghiệm thu live hữu hạn hai lượt. Trạng thái kiểm thử và giới hạn live liên tục ở [serving](docs/serving/README.md).
 
-**Developer mới:** dùng [hướng dẫn chạy từ đầu đến policy precision](docs/GETTING_STARTED.md), gồm Ubuntu/Arch, Windows qua WSL2, dataset, cấu hình, từng lệnh, tiêu chí đạt và phục hồi.
+**Developer mới:** dùng [hướng dẫn chạy từ đầu đến dashboard](docs/GETTING_STARTED.md), gồm Ubuntu/Arch, Windows qua WSL2, dataset, cấu hình, từng lệnh, tiêu chí đạt và phục hồi.
+
+**Người sử dụng ứng dụng:** dùng [hướng dẫn thao tác web và đọc kết quả](docs/serving/06-web-user-guide.md), gồm lựa chọn phiên/run/batch, feed, KPI/funnel, phân cụm, dự đoán mua hàng, pipeline và bài thực hành.
 
 Kế hoạch sản phẩm đầy đủ: [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
 
-Mục lục tài liệu: [docs/README.md](docs/README.md). Hướng dẫn hạ tầng: [docs/infra/README.md](docs/infra/README.md). Ingestion: [docs/data/README.md](docs/data/README.md). Replay/KPI: [docs/streaming/README.md](docs/streaming/README.md). Session/funnel: [docs/analytics/README.md](docs/analytics/README.md).
+Mục lục tài liệu: [docs/README.md](docs/README.md). [Bản đồ sơ đồ trực quan](docs/diagrams/README.md). Hướng dẫn hạ tầng: [docs/infra/README.md](docs/infra/README.md). Ingestion: [docs/data/README.md](docs/data/README.md). Replay/KPI: [docs/streaming/README.md](docs/streaming/README.md). Session/funnel: [docs/analytics/README.md](docs/analytics/README.md).
 
 Machine Learning: [docs/ml/README.md](docs/ml/README.md).
 
@@ -14,7 +16,7 @@ Machine Learning: [docs/ml/README.md](docs/ml/README.md).
 
 - Linux `amd64`, CPU hỗ trợ AVX, tối thiểu bốn CPU logic cho Docker.
 - Docker Engine đang chạy, Docker Compose hỗ trợ `up --wait` và plugin Docker Buildx cho BuildKit cache. Trên Arch Linux: `sudo pacman -S docker-buildx`.
-- Python 3.10+ và GNU Make trên máy chủ. Job trong container dùng Python 3.11.
+- Python 3.11+ và GNU Make trên máy chủ để chạy toàn bộ ứng dụng gồm API; hạ tầng cũ vẫn nhận Python 3.10. Job trong container dùng Python 3.11.
 - Khoảng **7 GiB RAM khả dụng** trước khi khởi động toàn bộ cụm; chín container có tổng giới hạn 6,25 GiB, cộng tối đa 704 MiB cho ba job init, tổng 6,94 GiB. Docker daemon và hệ điều hành cần RAM riêng. Xem [ngân sách RAM](docs/infra/10-memory-budget.md).
 - Ít nhất 30 GiB trống trên phân vùng chứa Docker data; nên dành thêm dung lượng khi nạp dataset.
 - Internet trong lần build đầu để tải base image, binary Apache và dependency.
@@ -56,7 +58,7 @@ make config
 make test
 ```
 
-`make test` chạy 34 test hạ tầng và 161 test ứng dụng, dùng Python standard library, Compose CLI, Bash, curl và GNU coreutils. Lượt hiện tại có 188 đạt, 7 HTTP skipped vì môi trường cấm tạo socket loopback. Không cần cài PySpark trên host. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
+`make test` có 38 test hạ tầng và 211 test ứng dụng ở commit được đối chiếu; 24 test live offline nằm trong suite ứng dụng. Phiên sandbox có 7 HTTP skipped vì cấm socket loopback. Serving có 23 test API offline và 15 test JavaScript riêng. Số lượng có thể tăng theo commit; đọc tổng kết/exit code của suite. Không cần cài PySpark trên host. Các kiểm tra này không thay thế smoke hoặc kiểm thử dữ liệu trên cụm đang chạy.
 
 ## Nạp dữ liệu lịch sử
 
@@ -148,17 +150,50 @@ make purchase-policy-status
 
 Chỉ khi `eligible=true`, chạy `make apply-purchase-policy`; lệnh in ID mới để dùng với `purchase-score-status SCORE_RUN_ID=...`. Không cần build dataset, fit RF hoặc build image lại. Artifact người dùng tạo đã xác nhận 5/5 live test policy, sáu fault scenario, cleanup/monitor đạt; ngưỡng 0,96 có precision test 73,88%, recall 13,64%, `eligible=true`. Apply đủ 69.052 visitor, bốn predicted positive; lần hai `reused=true`, cùng fingerprint, không duplicate. Đây là đánh giá lại ngưỡng trên test đã từng được xem, không phải fresh holdout. Máy mới phải kiểm tra report/eligibility riêng; xem [runbook](docs/GETTING_STARTED.md#policy).
 
+## ML streaming và simulator
+
+Sau khi K-Means, RF và policy eligible đã published, không có driver khác:
+
+```bash
+make test-stream-ml
+make prepare-ml-demo RUN_ID=ml-replay-001
+```
+
+Terminal A chạy `make stream-ml RUN_ID=ml-replay-001`; đợi `STREAM_ML_READY`, terminal B chạy `make replay-ml RUN_ID=ml-replay-001`. Theo dõi bằng `make stream-ml-status RUN_ID=ml-replay-001`. Replay mặc định ngày 18/09/2015 `[00:00,03:00)` UTC có 1.528 event/1.016 visitor; seed chỉ chứa bảy ngày trước START, event mới chỉ tham gia feature sau khi accepted qua Kafka.
+
+Simulator dùng RUN_ID khác: `make prepare-ml-demo RUN_ID=ml-sim-001 DEMO_SOURCE=simulator`, terminal A chạy `stream-ml`, terminal B chạy `make simulate-ml RUN_ID=ml-sim-001` sau READY. Ba visitor mới phát chín event qua ba đợt; mỗi đợt chờ prediction được committed. Score không bắt buộc tăng sau mỗi hành động.
+
+Profile `streaming-ml` khóa model/policy/checksum riêng, giữ nguyên năm archive cũ; không thêm image/service hoặc fit lại model nguồn thật. Artifact đã xác nhận 7/7 live test, replay 1.528 event/1.016 visitor, simulator 9 event/3 visitor và hai lượt completed reuse giữ nguyên fingerprint. Replay p95 41,888 giây; simulator 28,303 giây. Xem [vận hành, retry và nghiệm thu streaming ML](docs/ml/10-streaming-scoring.md).
+
+## Dashboard HTML/CSS/JS và API local
+
+Sau khi đã có run ML, từ root (API cần Python 3.11+):
+
+```bash
+make api-setup
+make api-indexes
+make api
+```
+
+Giữ terminal API hoạt động. Mở `web/index.html` trong VS Code → **Open with Live Server**. Chọn RUN_ID để xem tổng quan/funnel, phân khúc/prediction hoặc pipeline. Trang tự cập nhật mỗi năm giây và khóa cùng snapshot giữa các request.
+
+Frontend dùng HTML/CSS/JS và SVG thuần; không cần Node/npm để chạy. FastAPI bind `127.0.0.1:8000`, đọc MongoDB qua cổng host hiện có. Virtualenv riêng ở `services/.venv/`; không thêm container/image hoặc thay Compose. Tài liệu cài đặt, API, source guide, test và xử lý lỗi: [docs/serving/](docs/serving/README.md).
+
+`make test-web` chạy 15 test JS (cần Node 18+); `make test-api-offline` chạy 23 test HTTP offline. `make test-api` chạy thêm 23 case Mongo thật; `make smoke-web RUN_ID=...` đối chiếu API với một run đã hoàn tất.
+
+Demo nhiều dữ liệu và chạy đến khi dừng: `make live-demo LIVE_ID=onboarding-live-001 RATE=5`. Một lệnh quản lý consumer/producer, mặc định 1.000 event/lượt và tối đa 200 visitor/100 sản phẩm. Web có feed Kafka ACK mỗi giây, theo dõi run con và snapshot Spark; Ctrl+C một lần yêu cầu dừng/drain, resume cần cùng mã/config. Xem [nghiệm thu hữu hạn rồi chạy liên tục](docs/GETTING_STARTED.md#live-demo) và [cách đọc web](docs/serving/06-web-user-guide.md). Artifact thực tế xác nhận `live-check-002` passed 240 event/hai lượt; `demo-live-002` hoàn tất lượt đầu nhưng gián đoạn ở lượt 2, nên stop/resume liên tục cần kiểm chứng riêng. ID khóa mã cũ cần phiên bản gốc hoặc ID mới khi cập nhật mã.
+
 ## Dịch vụ và phiên bản
 
-| Service | Vai trò | Bộ nhớ tối đa |
-|---|---|---:|
-| `kafka` | Kafka 3.9.1, KRaft broker/controller | 768 MiB |
-| `namenode` | Hadoop 3.4.2 NameNode | 512 MiB |
-| `datanode-1`, `datanode-2` | HDFS DataNodes, replication 2 | 384 MiB mỗi node |
-| `spark-master` | Spark 3.5.7 Standalone master | 384 MiB |
+| Service                            | Vai trò                                                |        Bộ nhớ tối đa |
+| ---------------------------------- | ------------------------------------------------------ | -------------------: |
+| `kafka`                            | Kafka 3.9.1, KRaft broker/controller                   |              768 MiB |
+| `namenode`                         | Hadoop 3.4.2 NameNode                                  |              512 MiB |
+| `datanode-1`, `datanode-2`         | HDFS DataNodes, replication 2                          |     384 MiB mỗi node |
+| `spark-master`                     | Spark 3.5.7 Standalone master                          |              384 MiB |
 | `spark-worker-1`, `spark-worker-2` | Hai worker, một core và heap executor 640 MiB mỗi node | 1.280 MiB mỗi worker |
-| `spark-client` | Python 3.11 / Java 17, chạy driver | 896 MiB |
-| `mongodb` | MongoDB 8.0, authentication bật | 512 MiB |
+| `spark-client`                     | Python 3.11 / Java 17, chạy driver                     |              896 MiB |
+| `mongodb`                          | MongoDB 8.0, authentication bật                        |              512 MiB |
 
 Ba job chạy một lần là `kafka-init`, `hdfs-init`, `mongo-init`. Init phải thoát với mã 0; `Exited (0)` là trạng thái đúng cho các job này.
 
@@ -170,17 +205,17 @@ Sau `make build`, manifest image ID/digest và phiên bản Docker/Compose nằm
 
 ## Endpoint
 
-| Thành phần | Từ container | Từ máy chủ |
-|---|---|---|
-| Kafka | `kafka:9092` | `127.0.0.1:19092` |
-| HDFS | `hdfs://namenode:9000` | Chạy qua `spark-client` |
-| NameNode UI | `namenode:9870` | <http://127.0.0.1:9870> |
-| Spark master | `spark://spark-master:7077` | Chạy qua `spark-client` |
-| Spark master UI | `spark-master:18080` | <http://127.0.0.1:18080> |
-| Worker 1 UI | `spark-worker-1:18081` | <http://127.0.0.1:18081> |
-| Worker 2 UI | `spark-worker-2:18082` | <http://127.0.0.1:18082> |
-| Spark application UI | `spark-client:14040` | <http://127.0.0.1:14040>, khi có job |
-| MongoDB | `mongodb:27017` | `127.0.0.1:27018` |
+| Thành phần           | Từ container                | Từ máy chủ                           |
+| -------------------- | --------------------------- | ------------------------------------ |
+| Kafka                | `kafka:9092`                | `127.0.0.1:19092`                    |
+| HDFS                 | `hdfs://namenode:9000`      | Chạy qua `spark-client`              |
+| NameNode UI          | `namenode:9870`             | <http://127.0.0.1:9870>              |
+| Spark master         | `spark://spark-master:7077` | Chạy qua `spark-client`              |
+| Spark master UI      | `spark-master:18080`        | <http://127.0.0.1:18080>             |
+| Worker 1 UI          | `spark-worker-1:18081`      | <http://127.0.0.1:18081>             |
+| Worker 2 UI          | `spark-worker-2:18082`      | <http://127.0.0.1:18082>             |
+| Spark application UI | `spark-client:14040`        | <http://127.0.0.1:14040>, khi có job |
+| MongoDB              | `mongodb:27017`             | `127.0.0.1:27018`                    |
 
 Cổng publish chỉ bind `127.0.0.1`. Các số cổng host có thể đổi trong `.env`; dùng trực tiếp URL mới khi đổi cổng. `localhost` trong container không phải máy chủ hoặc container khác.
 
@@ -190,10 +225,10 @@ MongoDB dùng database `ecommerce`, app user `analytics`, `authSource=ecommerce`
 
 Kafka tạo hai topic nghiệp vụ, không tự tạo topic từ request producer:
 
-| Topic | Partitions | Replication | Retention |
-|---|---:|---:|---:|
-| `ecommerce.events.raw` | 3 | 1 | 48 giờ |
-| `ecommerce.events.dlq` | 1 | 1 | 48 giờ |
+| Topic                  | Partitions | Replication | Retention |
+| ---------------------- | ---------: | ----------: | --------: |
+| `ecommerce.events.raw` |          3 |           1 |    48 giờ |
+| `ecommerce.events.dlq` |          1 |           1 |    48 giờ |
 
 Listener Kafka riêng cho network Docker và host. Kafka cluster ID được giữ nguyên trong `.env`; startup từ chối khi ID khác với metadata trong volume.
 
@@ -289,3 +324,7 @@ Lệnh reset không gọi `docker system prune`, không xóa dataset và không 
 - [Spark 3.5.7 Standalone](https://spark.apache.org/docs/3.5.7/spark-standalone.html)
 - [Spark Kafka integration](https://spark.apache.org/docs/3.5.7/structured-streaming-kafka-integration.html)
 - [HDFS architecture](https://hadoop.apache.org/docs/r3.4.2/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html)
+
+## Tài liệu tổng hợp
+
+- [Tài liệu toàn diện về dự án](/docs/sumary.md)
