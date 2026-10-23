@@ -2,18 +2,19 @@
 
 Tài liệu cho **E-commerce User Behavior Analytics Platform** được tổ chức theo từng phần của hệ thống.
 
-| Tài liệu | Nội dung |
-| --- | --- |
-| [Chạy toàn bộ trên máy mới](GETTING_STARTED.md) | Từ clone GitHub, Ubuntu/Arch hoặc Windows/WSL2, dataset và Docker Compose đến ingest, train, policy, API/Live Server, replay và live nhiều lượt; output, nghiệm thu, retry và cleanup. |
-| [Sử dụng web và đọc kết quả](serving/06-web-user-guide.md) | Thao tác từng màn hình, phiên/run/batch, feed, KPI/funnel, phân cụm, score/nhãn, metrics lịch sử, ví dụ thực tế và lỗi thường gặp. |
-| [Hạ tầng](infra/README.md) | Docker Compose, Kafka, HDFS, Spark, MongoDB; cấu hình, khởi tạo, vận hành, kiểm thử, xử lý lỗi, tối ưu build và ngân sách RAM. |
-| [Dữ liệu lịch sử](data/README.md) | Data dictionary, hợp đồng sự kiện, Bronze/Silver, chuẩn hóa, loại trùng, quarantine, chất lượng và kiểm thử ingestion. |
-| [Replay và streaming KPI](streaming/README.md) | Producer Kafka, Structured Streaming, KPI MongoDB, checkpoint/retry, DLQ, vận hành demo và nghiệm thu. |
-| [Session và funnel](analytics/README.md) | Phân tích lịch sử và streaming, phiên 30 phút, funnel tổng quan/sản phẩm, snapshot HDFS/MongoDB, vận hành và kiểm thử. |
-| [Machine Learning](ml/README.md) | Feature 7 ngày, K-Means; nhãn 24 giờ, RF batch/policy, ML streaming với replay/simulator, snapshot và nghiệm thu. |
-| [API và dashboard local](serving/README.md) | FastAPI trên host; HTML/CSS/JS qua Live Server; ba màn hình, demo liên tục, feed mỗi giây, snapshot và kiểm thử. |
-| [Bản đồ sơ đồ trực quan](diagrams/README.md) | Sơ đồ Mermaid về kiến trúc, dữ liệu, training K-Means/RF, streaming ML, live demo, snapshot API và cách đọc kết quả. |
-| [Kế hoạch triển khai tổng thể](../IMPLEMENTATION_PLAN.md) | Mục tiêu, luồng dữ liệu, phân tích hành vi, Machine Learning, API/dashboard và các mốc triển khai. |
+| Tài liệu                                                   | Nội dung                                                                                                                                                                               |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Chạy toàn bộ trên máy mới](GETTING_STARTED.md)            | Từ clone GitHub, Ubuntu/Arch hoặc Windows/WSL2, dataset và Docker Compose đến ingest, train, policy, API/Live Server, replay và live nhiều lượt; output, nghiệm thu, retry và cleanup. |
+| [Sử dụng web và đọc kết quả](serving/06-web-user-guide.md) | Thao tác từng màn hình, phiên/run/batch, feed, KPI/funnel, phân cụm, score/nhãn, metrics lịch sử, ví dụ thực tế và lỗi thường gặp.                                                     |
+| [Hạ tầng](infra/README.md)                                 | Docker Compose, Kafka, HDFS, Spark, MongoDB; cấu hình, khởi tạo, vận hành, kiểm thử, xử lý lỗi, tối ưu build và ngân sách RAM.                                                         |
+| [Dữ liệu lịch sử](data/README.md)                          | Data dictionary, hợp đồng sự kiện, Bronze/Silver, chuẩn hóa, loại trùng, quarantine, chất lượng và kiểm thử ingestion.                                                                 |
+| [Replay và streaming KPI](streaming/README.md)             | Producer Kafka, Structured Streaming, KPI MongoDB, checkpoint/retry, DLQ, vận hành demo và nghiệm thu.                                                                                 |
+| [Session và funnel](analytics/README.md)                   | Phân tích lịch sử và streaming, phiên 30 phút, funnel tổng quan/sản phẩm, snapshot HDFS/MongoDB, vận hành và kiểm thử.                                                                 |
+| [Machine Learning](ml/README.md)                           | Feature 7 ngày, K-Means; nhãn 24 giờ, RF batch/policy, ML streaming với replay/simulator, snapshot và nghiệm thu.                                                                      |
+| [API và dashboard local](serving/README.md)                | FastAPI trên host; HTML/CSS/JS qua Live Server; ba màn hình, demo liên tục, feed mỗi giây, snapshot và kiểm thử.                                                                       |
+| [Bản đồ sơ đồ trực quan](diagrams/README.md)               | Sơ đồ Mermaid về kiến trúc, dữ liệu, training K-Means/RF, streaming ML, live demo, snapshot API và cách đọc kết quả.                                                                   |
+| [Báo cáo audit tổng hợp](PROJECT_AUDIT.md)                 | Audit yêu cầu, kiến trúc, dữ liệu, Big Data pipeline, ML, API/dashboard, kiểm thử, artifact runtime và so sánh các lần chạy.                                                           |
+| [Kế hoạch triển khai tổng thể](../IMPLEMENTATION_PLAN.md)  | Mục tiêu, luồng dữ liệu, phân tích hành vi, Machine Learning, API/dashboard và các mốc triển khai.                                                                                     |
 
 Bắt đầu từ [hướng dẫn máy mới](GETTING_STARTED.md) để chạy đầy đủ; khi đã mở được ứng dụng, chuyển sang [hướng dẫn web](serving/06-web-user-guide.md). [README gốc](../README.md) dành cho tra cứu nhanh; [mục lục hạ tầng](infra/README.md) giải thích sâu về dựng/vận hành cụm.
 
