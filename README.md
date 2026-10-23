@@ -185,15 +185,15 @@ Demo nhiều dữ liệu và chạy đến khi dừng: `make live-demo LIVE_ID=o
 
 ## Dịch vụ và phiên bản
 
-| Service | Vai trò | Bộ nhớ tối đa |
-|---|---|---:|
-| `kafka` | Kafka 3.9.1, KRaft broker/controller | 768 MiB |
-| `namenode` | Hadoop 3.4.2 NameNode | 512 MiB |
-| `datanode-1`, `datanode-2` | HDFS DataNodes, replication 2 | 384 MiB mỗi node |
-| `spark-master` | Spark 3.5.7 Standalone master | 384 MiB |
+| Service                            | Vai trò                                                |        Bộ nhớ tối đa |
+| ---------------------------------- | ------------------------------------------------------ | -------------------: |
+| `kafka`                            | Kafka 3.9.1, KRaft broker/controller                   |              768 MiB |
+| `namenode`                         | Hadoop 3.4.2 NameNode                                  |              512 MiB |
+| `datanode-1`, `datanode-2`         | HDFS DataNodes, replication 2                          |     384 MiB mỗi node |
+| `spark-master`                     | Spark 3.5.7 Standalone master                          |              384 MiB |
 | `spark-worker-1`, `spark-worker-2` | Hai worker, một core và heap executor 640 MiB mỗi node | 1.280 MiB mỗi worker |
-| `spark-client` | Python 3.11 / Java 17, chạy driver | 896 MiB |
-| `mongodb` | MongoDB 8.0, authentication bật | 512 MiB |
+| `spark-client`                     | Python 3.11 / Java 17, chạy driver                     |              896 MiB |
+| `mongodb`                          | MongoDB 8.0, authentication bật                        |              512 MiB |
 
 Ba job chạy một lần là `kafka-init`, `hdfs-init`, `mongo-init`. Init phải thoát với mã 0; `Exited (0)` là trạng thái đúng cho các job này.
 
@@ -205,17 +205,17 @@ Sau `make build`, manifest image ID/digest và phiên bản Docker/Compose nằm
 
 ## Endpoint
 
-| Thành phần | Từ container | Từ máy chủ |
-|---|---|---|
-| Kafka | `kafka:9092` | `127.0.0.1:19092` |
-| HDFS | `hdfs://namenode:9000` | Chạy qua `spark-client` |
-| NameNode UI | `namenode:9870` | <http://127.0.0.1:9870> |
-| Spark master | `spark://spark-master:7077` | Chạy qua `spark-client` |
-| Spark master UI | `spark-master:18080` | <http://127.0.0.1:18080> |
-| Worker 1 UI | `spark-worker-1:18081` | <http://127.0.0.1:18081> |
-| Worker 2 UI | `spark-worker-2:18082` | <http://127.0.0.1:18082> |
-| Spark application UI | `spark-client:14040` | <http://127.0.0.1:14040>, khi có job |
-| MongoDB | `mongodb:27017` | `127.0.0.1:27018` |
+| Thành phần           | Từ container                | Từ máy chủ                           |
+| -------------------- | --------------------------- | ------------------------------------ |
+| Kafka                | `kafka:9092`                | `127.0.0.1:19092`                    |
+| HDFS                 | `hdfs://namenode:9000`      | Chạy qua `spark-client`              |
+| NameNode UI          | `namenode:9870`             | <http://127.0.0.1:9870>              |
+| Spark master         | `spark://spark-master:7077` | Chạy qua `spark-client`              |
+| Spark master UI      | `spark-master:18080`        | <http://127.0.0.1:18080>             |
+| Worker 1 UI          | `spark-worker-1:18081`      | <http://127.0.0.1:18081>             |
+| Worker 2 UI          | `spark-worker-2:18082`      | <http://127.0.0.1:18082>             |
+| Spark application UI | `spark-client:14040`        | <http://127.0.0.1:14040>, khi có job |
+| MongoDB              | `mongodb:27017`             | `127.0.0.1:27018`                    |
 
 Cổng publish chỉ bind `127.0.0.1`. Các số cổng host có thể đổi trong `.env`; dùng trực tiếp URL mới khi đổi cổng. `localhost` trong container không phải máy chủ hoặc container khác.
 
@@ -225,10 +225,10 @@ MongoDB dùng database `ecommerce`, app user `analytics`, `authSource=ecommerce`
 
 Kafka tạo hai topic nghiệp vụ, không tự tạo topic từ request producer:
 
-| Topic | Partitions | Replication | Retention |
-|---|---:|---:|---:|
-| `ecommerce.events.raw` | 3 | 1 | 48 giờ |
-| `ecommerce.events.dlq` | 1 | 1 | 48 giờ |
+| Topic                  | Partitions | Replication | Retention |
+| ---------------------- | ---------: | ----------: | --------: |
+| `ecommerce.events.raw` |          3 |           1 |    48 giờ |
+| `ecommerce.events.dlq` |          1 |           1 |    48 giờ |
 
 Listener Kafka riêng cho network Docker và host. Kafka cluster ID được giữ nguyên trong `.env`; startup từ chối khi ID khác với metadata trong volume.
 
@@ -324,3 +324,7 @@ Lệnh reset không gọi `docker system prune`, không xóa dataset và không 
 - [Spark 3.5.7 Standalone](https://spark.apache.org/docs/3.5.7/spark-standalone.html)
 - [Spark Kafka integration](https://spark.apache.org/docs/3.5.7/structured-streaming-kafka-integration.html)
 - [HDFS architecture](https://hadoop.apache.org/docs/r3.4.2/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html)
+
+## Tài liệu tổng hợp
+
+- [Tài liệu toàn diện về dự án](/docs/sumary.md)

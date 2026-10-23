@@ -65,31 +65,31 @@ flowchart LR
     API --> WEB["HTML/CSS/JS qua VS Code Live Server"]
 ```
 
-| Thành phần         | Công dụng                                                                               |
-| ------------------ | --------------------------------------------------------------------------------------- |
-| Docker Compose     | Khởi tạo network, volume, giới hạn tài nguyên, healthcheck và thứ tự init trên một máy. |
-| Kafka              | Nhận event replay, giữ offset và tách event lỗi sang DLQ.                               |
-| HDFS               | Lưu nguồn, Parquet, snapshot, checkpoint và model; hai DataNode giữ replication 2.      |
-| Spark              | Xử lý batch/streaming và ML phân tán qua hai worker.                                    |
-| MongoDB            | Giữ kết quả đã công bố, metadata và lookup theo visitor/sản phẩm.                       |
-| Make và Python CLI | Kiểm tra điều kiện, điều phối job, khóa driver, ghi log và report.                      |
-| FastAPI trên host | Đọc kết quả MongoDB qua HTTP, kiểm tra run/batch/model của snapshot. |
+| Thành phần         | Công dụng                                                                                  |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| Docker Compose     | Khởi tạo network, volume, giới hạn tài nguyên, healthcheck và thứ tự init trên một máy.    |
+| Kafka              | Nhận event replay, giữ offset và tách event lỗi sang DLQ.                                  |
+| HDFS               | Lưu nguồn, Parquet, snapshot, checkpoint và model; hai DataNode giữ replication 2.         |
+| Spark              | Xử lý batch/streaming và ML phân tán qua hai worker.                                       |
+| MongoDB            | Giữ kết quả đã công bố, metadata và lookup theo visitor/sản phẩm.                          |
+| Make và Python CLI | Kiểm tra điều kiện, điều phối job, khóa driver, ghi log và report.                         |
+| FastAPI trên host  | Đọc kết quả MongoDB qua HTTP, kiểm tra run/batch/model của snapshot.                       |
 | Web và Live Server | Hiển thị feed, KPI, phân khúc, dự đoán và tiến độ; người vận hành phát stream từ terminal. |
 
 Đã có ingestion, KPI streaming, session/funnel lịch sử và streaming, K-Means lịch sử, RF batch/policy và ML streaming. FastAPI/dashboard đã đọc được dữ liệu thật; xem phạm vi nghiệm thu tại [serving](serving/README.md). Spark/HDFS UI là giao diện vận hành. Retailrocket không có giá/doanh thu hoặc bước bắt đầu thanh toán; funnel hiện tại là **xem → thêm giỏ → mua**. Hai worker/DataNode cùng một máy không bảo vệ khi cả máy hoặc ổ đĩa hỏng.
 
 Các nhánh phụ thuộc như sau; thứ tự trong tài liệu là một lộ trình chạy đầy đủ:
 
-| Giai đoạn                                 | Cần có trước                                                                       |
-| ----------------------------------------- | ---------------------------------------------------------------------------------- |
-| Hạ tầng                                   | Công cụ, bốn CSV, `.env`, image đã build                                           |
-| Ingest                                    | Hạ tầng healthy, smoke đạt                                                         |
-| Behavior lịch sử, demo streaming, K-Means | Silver đã ingest đạt chất lượng                                                    |
-| RF                                        | Silver; không cần dùng cluster K-Means làm feature                                 |
-| Policy                                    | RF published và validation/test predictions; apply cần thêm original batch score |
-| ML streaming                              | Silver, K-Means, RF và policy eligible đã published; không cần tạo batch score mới |
-| API và dashboard | MongoDB đang chạy, API đã cài; muốn xem kết quả cần có run ML nghiệp vụ |
-| Live nhiều lượt | Cùng nguồn/model/policy như ML streaming; một driver/producer được quản lý bởi lệnh live |
+| Giai đoạn                                 | Cần có trước                                                                             |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Hạ tầng                                   | Công cụ, bốn CSV, `.env`, image đã build                                                 |
+| Ingest                                    | Hạ tầng healthy, smoke đạt                                                               |
+| Behavior lịch sử, demo streaming, K-Means | Silver đã ingest đạt chất lượng                                                          |
+| RF                                        | Silver; không cần dùng cluster K-Means làm feature                                       |
+| Policy                                    | RF published và validation/test predictions; apply cần thêm original batch score         |
+| ML streaming                              | Silver, K-Means, RF và policy eligible đã published; không cần tạo batch score mới       |
+| API và dashboard                          | MongoDB đang chạy, API đã cài; muốn xem kết quả cần có run ML nghiệp vụ                  |
+| Live nhiều lượt                           | Cùng nguồn/model/policy như ML streaming; một driver/producer được quản lý bởi lệnh live |
 
 ### 1.1. Chọn đúng lộ trình
 
@@ -103,12 +103,12 @@ Huấn luyện lần đầu là phần tốn thời gian nhất: build purchase 
 
 Mỗi terminal Bash đều mở **cùng clone và cùng thư mục root**. Trong các mục demo v2/ML, terminal consumer và producer được ghi riêng. Khi tới dashboard/live, dùng:
 
-| Terminal | Chạy gì | Khi nào giữ mở |
-| --- | --- | --- |
-| A — API | `make api` | Suốt thời gian sử dụng web |
-| B — job | Một job Spark, hoặc `make live-demo` | Đến khi job hoàn tất hoặc live dừng/drain xong |
-| C — điều khiển | Health/status; hoặc producer khi dùng replay/simulator kiểu cũ | Theo từng lệnh |
-| VS Code/browser | Live Server và dashboard | Suốt buổi xem kết quả |
+| Terminal        | Chạy gì                                                        | Khi nào giữ mở                                 |
+| --------------- | -------------------------------------------------------------- | ---------------------------------------------- |
+| A — API         | `make api`                                                     | Suốt thời gian sử dụng web                     |
+| B — job         | Một job Spark, hoặc `make live-demo`                           | Đến khi job hoàn tất hoặc live dừng/drain xong |
+| C — điều khiển  | Health/status; hoặc producer khi dùng replay/simulator kiểu cũ | Theo từng lệnh                                 |
+| VS Code/browser | Live Server và dashboard                                       | Suốt buổi xem kết quả                          |
 
 Một Spark driver phục vụ hai worker. API và Live Server chạy cùng driver được; không chạy smoke, test tích hợp, train hoặc consumer thứ hai trong lúc live đang giữ driver. `make live-demo` đã có producer bên trong, không chạy thêm `simulate-ml` cho phiên đó.
 
@@ -124,9 +124,9 @@ ID trong các lệnh là tên ví dụ. Lần đầu dùng đúng tên trong tà
 | CPU                   | `x86_64`, hỗ trợ AVX, Docker thấy ít nhất 4 CPU logic                                                                         |
 | RAM                   | Khoảng **7 GiB khả dụng** trước khi dựng cả cụm; khuyến nghị máy có ít nhất 16 GB để còn RAM cho OS/Docker                    |
 | Dung lượng            | Preflight yêu cầu ít nhất **30 GiB trống ở Docker data**; nên dành 50–60 GiB trở lên và theo dõi khi lưu nhiều snapshot/model |
-| Công cụ host          | Git, GNU Make, Python **3.11+** và venv/pip cho toàn bộ lộ trình có API; Bash, curl, unzip, GNU coreutils |
-| Giao diện | VS Code, extension Live Server (`ritwickdey.LiveServer`) và trình duyệt hỗ trợ ES modules |
-| Test web, tùy chọn | Node 18+ cho `make test-web`; frontend chạy không cần npm/Node |
+| Công cụ host          | Git, GNU Make, Python **3.11+** và venv/pip cho toàn bộ lộ trình có API; Bash, curl, unzip, GNU coreutils                     |
+| Giao diện             | VS Code, extension Live Server (`ritwickdey.LiveServer`) và trình duyệt hỗ trợ ES modules                                     |
+| Test web, tùy chọn    | Node 18+ cho `make test-web`; frontend chạy không cần npm/Node                                                                |
 | Docker                | Daemon truy cập được, Compose hỗ trợ `up --wait`, Buildx plugin hoạt động                                                     |
 | Mạng                  | Lần build đầu cần tải image, binary Apache, Python dependencies và dataset                                                    |
 
@@ -727,10 +727,10 @@ make api-setup
 make api-indexes
 ```
 
-| Lệnh | Công dụng | Dấu hiệu đạt |
-| --- | --- | --- |
-| `api-setup` | Tạo `services/.venv/`, cài dependency khóa phiên bản, chạy `pip check` | Exit 0; `No broken requirements found` |
-| `api-indexes` | Tạo/kiểm tra indexes cho run, minute, prediction và feed live | `Serving indexes verified; no snapshot content changed.` |
+| Lệnh          | Công dụng                                                              | Dấu hiệu đạt                                             |
+| ------------- | ---------------------------------------------------------------------- | -------------------------------------------------------- |
+| `api-setup`   | Tạo `services/.venv/`, cài dependency khóa phiên bản, chạy `pip check` | Exit 0; `No broken requirements found`                   |
+| `api-indexes` | Tạo/kiểm tra indexes cho run, minute, prediction và feed live          | `Serving indexes verified; no snapshot content changed.` |
 
 `api-indexes` không mở HTTP server. Dòng pip thông báo có bản mới không phải lỗi cài đặt. Nếu Python mặc định quá cũ, dùng interpreter 3.11+ cho `api-setup`; sau đó manager gọi interpreter trong virtualenv. Không copy `services/.venv/` từ máy khác.
 
@@ -775,7 +775,7 @@ window.ECOMMERCE_CONFIG = {
   apiBaseUrl: "http://127.0.0.1:8001",
   refreshMs: 5000,
   sparkUiPort: 18080,
-  hdfsUiPort: 9870
+  hdfsUiPort: 9870,
 };
 ```
 
@@ -853,13 +853,13 @@ make live-demo LIVE_ID=onboarding-live-001 RATE=5
 
 Mặc định mỗi lượt 1.000 event, 200 visitor, 100 sản phẩm; tiếp tục nhiều lượt cho đến khi yêu cầu dừng. Chọn `onboarding-live-001` trong **Phiên live**, bật hai checkbox theo dõi/KPI. Run con có dạng `onboarding-live-001-000001`, `-000002`… Mỗi lượt có cohort visitor mới; KPI chính thuộc run con đang được xem, tổng trong panel live thuộc toàn phiên.
 
-| Tham số khi tạo phiên | Mặc định | Ý nghĩa/giới hạn |
-| --- | ---: | --- |
-| `RATE` | 5 | Event/giây; >0 và ≤10 |
-| `LIVE_EVENTS` | 1.000 | Event mỗi lượt, 12..1.000 |
-| `LIVE_VISITORS` | 200 | 3..200 và không quá nửa event mỗi lượt |
-| `LIVE_ITEMS` | 100 | 3..100 |
-| `LIVE_SEGMENTS` | 0 | 0 là liên tục; số dương giới hạn tổng số lượt |
+| Tham số khi tạo phiên | Mặc định | Ý nghĩa/giới hạn                              |
+| --------------------- | -------: | --------------------------------------------- |
+| `RATE`                |        5 | Event/giây; >0 và ≤10                         |
+| `LIVE_EVENTS`         |    1.000 | Event mỗi lượt, 12..1.000                     |
+| `LIVE_VISITORS`       |      200 | 3..200 và không quá nửa event mỗi lượt        |
+| `LIVE_ITEMS`          |      100 | 3..100                                        |
+| `LIVE_SEGMENTS`       |        0 | 0 là liên tục; số dương giới hạn tổng số lượt |
 
 Seed nguồn được giữ theo phiên; đổi LIVE_ID sinh kịch bản khác. Ngày nghiệp vụ vẫn là 2015 theo cutoff model, còn giờ phát là giờ hiện tại UTC. Thêm dữ liệu không buộc score, nhãn hoặc số người mua phải tăng.
 
@@ -925,8 +925,8 @@ Tài liệu web có [bài thực hành và checklist](serving/06-web-user-guide.
 | `prediction/policies/latest-policy.json`                 | Policy đánh giá gần nhất, có thể `eligible=false`                                              |
 | `prediction/policies/latest-policy-score.json`           | Score run mới được apply policy                                                                |
 | `streaming-ml/latest-run.json`, `streaming-ml/<RUN_ID>/` | Config/model binding, seed/source references, ACK, report/status và resources của ML streaming |
-| `live/<LIVE_ID>/` | Request/config đã khóa, report/status, resources, log từng attempt và kết quả các run con |
-| `serving/` | Report/log test API và smoke HTTP theo RUN_ID; khác report latency Spark |
+| `live/<LIVE_ID>/`                                        | Request/config đã khóa, report/status, resources, log từng attempt và kết quả các run con      |
+| `serving/`                                               | Report/log test API và smoke HTTP theo RUN_ID; khác report latency Spark                       |
 
 Live quản lý log/report ở cấp LIVE_ID; không giả định mỗi run con có thư mục host `streaming-ml/`. Run con và snapshot vẫn ở registry/HDFS. Không đưa `live/<LIVE_ID>/control.json` chứa owner token vào log công khai.
 
@@ -952,19 +952,19 @@ PY
 
 ### 13.2. Selector và identity
 
-| Tham số Make                                                     | Dùng cho                                                                                     |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `RUN_ID`, `START`, `END`, `RATE`                                 | Demo streaming; cấu hình chuẩn bị run, status/replay dùng cùng RUN_ID                        |
-| `ITEM_ID`                                                        | Lookup funnel sản phẩm                                                                       |
-| `AS_OF`                                                          | Cutoff feature/K-Means hoặc original RF scoring, tùy lệnh; policy lấy cutoff từ source score |
-| `FEATURE_SNAPSHOT_ID`                                            | Chọn feature snapshot K-Means khi train                                                      |
-| `MODEL_VERSION`                                                  | Model K-Means với lệnh segments, model RF với lệnh purchase/policy; không tráo ID            |
-| `PURCHASE_DATASET_ID`                                            | Chọn dataset khi train RF                                                                    |
-| `SCORE_RUN_ID`                                                   | Status một score cụ thể; khi apply là **original source score**                              |
-| `POLICY_VERSION`                                                 | Chọn policy đã đánh giá                                                                      |
-| `VISITOR_ID`                                                     | Lookup ID chuỗi, giữ leading zero                                                            |
-| `DEMO_SOURCE`, `SEGMENT_MODEL_VERSION`, `PURCHASE_MODEL_VERSION` | Chọn replay/simulator và model riêng khi prepare ML streaming; policy dùng `POLICY_VERSION`  |
-| `LIVE_ID`, `LIVE_EVENTS`, `LIVE_VISITORS`, `LIVE_ITEMS`, `LIVE_SEGMENTS` | Phiên live, quy mô mỗi lượt và giới hạn tổng lượt; cấu hình bị khóa khi tạo phiên |
+| Tham số Make                                                             | Dùng cho                                                                                     |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `RUN_ID`, `START`, `END`, `RATE`                                         | Demo streaming; cấu hình chuẩn bị run, status/replay dùng cùng RUN_ID                        |
+| `ITEM_ID`                                                                | Lookup funnel sản phẩm                                                                       |
+| `AS_OF`                                                                  | Cutoff feature/K-Means hoặc original RF scoring, tùy lệnh; policy lấy cutoff từ source score |
+| `FEATURE_SNAPSHOT_ID`                                                    | Chọn feature snapshot K-Means khi train                                                      |
+| `MODEL_VERSION`                                                          | Model K-Means với lệnh segments, model RF với lệnh purchase/policy; không tráo ID            |
+| `PURCHASE_DATASET_ID`                                                    | Chọn dataset khi train RF                                                                    |
+| `SCORE_RUN_ID`                                                           | Status một score cụ thể; khi apply là **original source score**                              |
+| `POLICY_VERSION`                                                         | Chọn policy đã đánh giá                                                                      |
+| `VISITOR_ID`                                                             | Lookup ID chuỗi, giữ leading zero                                                            |
+| `DEMO_SOURCE`, `SEGMENT_MODEL_VERSION`, `PURCHASE_MODEL_VERSION`         | Chọn replay/simulator và model riêng khi prepare ML streaming; policy dùng `POLICY_VERSION`  |
+| `LIVE_ID`, `LIVE_EVENTS`, `LIVE_VISITORS`, `LIVE_ITEMS`, `LIVE_SEGMENTS` | Phiên live, quy mô mỗi lượt và giới hạn tổng lượt; cấu hình bị khóa khi tạo phiên            |
 
 Dùng assignment trên từng lệnh, ví dụ `make behavior-status RUN_ID=onboarding-demo-001`, thay vì export selector dài hạn làm các giai đoạn sau đọc nhầm registry. ID model/snapshot phụ thuộc dữ liệu, mã, tham số và phiên bản; không lấy ID máy khác để điền trên máy mới. Không tự sửa JSON pointer hoặc snapshot đã published.
 
@@ -980,8 +980,8 @@ Dùng assignment trên từng lệnh, ví dụ `make behavior-status RUN_ID=onbo
 | <http://127.0.0.1:14040>                           | Spark application UI khi driver còn chạy                               |
 | `127.0.0.1:19092`                                  | Kafka host client                                                      |
 | `127.0.0.1:27018`                                  | Mongo host client; database/authSource `ecommerce`, app user từ `.env` |
-| <http://127.0.0.1:8000/docs> | API host, Swagger; health ở `/api/v1/health` |
-| <http://127.0.0.1:5500/web/> | Dashboard nếu Live Server mở root repository ở cổng mặc định |
+| <http://127.0.0.1:8000/docs>                       | API host, Swagger; health ở `/api/v1/health`                           |
+| <http://127.0.0.1:5500/web/>                       | Dashboard nếu Live Server mở root repository ở cổng mặc định           |
 
 Publish bind `127.0.0.1`; không tự mở ra Internet. Trên Windows/WSL thử các URL localhost từ browser Windows; nếu forwarding không hoạt động thì kiểm tra Desktop/WSL trước khi đổi network. Trong container dùng `kafka:9092`, `mongodb:27017`, `hdfs://namenode:9000`, `spark://spark-master:7077`; localhost của container không trỏ sang dịch vụ khác.
 
@@ -1001,18 +1001,18 @@ docker compose logs --tail=100 kafka spark-master spark-client
 
 Sau lượt đầu thành công, lưu report/log/resources và commit dùng để chạy. Lặp từng lệnh dưới đây **tuần tự, cùng nguồn/mã/tham số**, khi không còn driver khác. Các bước reuse vẫn phải đọc và xác minh snapshot, có thể mất vài phút hoặc lâu hơn; đây là phần nghiệm thu bổ sung, không bắt buộc lặp mỗi lần mở máy.
 
-| Lệnh chạy lại                                    | Bằng chứng cần kiểm                                                                                           |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| `make ingest`                                    | Cùng dataset/manifest, `bronze_reused=true`, `silver_reused=true`                                             |
-| `make analyze-behavior`                          | Cùng analysis ID/manifest/counts, `reused=true`                                                               |
-| `make build-features`, rồi `make train-segments` | Cùng feature/model ID và fingerprint, `reused=true`, không fit mới                                            |
-| `make build-purchase-data`                       | Daily snapshots/index cùng ID/counts, `reused=true` sau đủ chặng                                              |
-| `make train-purchase`                            | Sample/candidates/model reuse, cùng selection/metrics, không fit mới                                          |
-| `make score-purchases`                           | Cùng score ID/fingerprint, không thêm Mongo duplicate                                                         |
-| `make tune-purchase-policy`                      | Cùng policy/selection/evaluation, `reused=true`; không chọn ngưỡng lại                                        |
-| `make apply-purchase-policy` nếu eligible        | Cùng policy score ID, `reused=true`, Mongo count/fingerprint không đổi                                        |
-| `make stream-ml RUN_ID=...` sau completed        | Cùng config/model, checkpoint cuối và ML fingerprint, `reused=true`, không phát lại event hoặc thêm row trùng |
-| `make live-demo LIVE_ID=...` sau dừng/drain | Cùng mã/config/seed, tiếp tục đúng cursor/checkpoint, tổng phiên không cộng trùng; nghiệm thu riêng với run còn dở |
+| Lệnh chạy lại                                    | Bằng chứng cần kiểm                                                                                                |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `make ingest`                                    | Cùng dataset/manifest, `bronze_reused=true`, `silver_reused=true`                                                  |
+| `make analyze-behavior`                          | Cùng analysis ID/manifest/counts, `reused=true`                                                                    |
+| `make build-features`, rồi `make train-segments` | Cùng feature/model ID và fingerprint, `reused=true`, không fit mới                                                 |
+| `make build-purchase-data`                       | Daily snapshots/index cùng ID/counts, `reused=true` sau đủ chặng                                                   |
+| `make train-purchase`                            | Sample/candidates/model reuse, cùng selection/metrics, không fit mới                                               |
+| `make score-purchases`                           | Cùng score ID/fingerprint, không thêm Mongo duplicate                                                              |
+| `make tune-purchase-policy`                      | Cùng policy/selection/evaluation, `reused=true`; không chọn ngưỡng lại                                             |
+| `make apply-purchase-policy` nếu eligible        | Cùng policy score ID, `reused=true`, Mongo count/fingerprint không đổi                                             |
+| `make stream-ml RUN_ID=...` sau completed        | Cùng config/model, checkpoint cuối và ML fingerprint, `reused=true`, không phát lại event hoặc thêm row trùng      |
+| `make live-demo LIVE_ID=...` sau dừng/drain      | Cùng mã/config/seed, tiếp tục đúng cursor/checkpoint, tổng phiên không cộng trùng; nghiệm thu riêng với run còn dở |
 
 Sau apply lại, đọc lại `latest-policy-score.json` và chạy `purchase-score-status SCORE_RUN_ID=...` bằng cách ở mục 11. Original pointer vẫn phải giữ nguyên. Với cùng identity, retry snapshot published chỉ xác minh; không âm thầm chữa payload hỏng.
 
@@ -1053,31 +1053,31 @@ Snapshot đã commit được giữ để retry; phần staging chưa published 
 
 ### 15.3. Bảng xử lý nhanh
 
-| Triệu chứng                                      | Kiểm tra và hành động                                                                                                              |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Không kết nối Docker / permission denied         | Đúng context, daemon/Desktop đang mở, Linux group hoặc WSL integration; chạy lại `docker info` trong chính terminal dùng Make.     |
-| `unknown command: docker buildx` sau reboot      | Kiểm tra plugin thực sự được cài, PATH/context và cùng môi trường CLI; Arch cài `docker-buildx`, WSL dùng CLI từ Desktop.          |
-| Thiếu khoảng 7 GiB khả dụng                      | Đóng ứng dụng/stack khác; WSL cấp đủ VM RAM và restart có kiểm soát; không hạ gate để vượt qua khi máy thiếu RAM thật.             |
-| Không đủ 30 GiB Docker disk                      | Kiểm tra Docker data/virtual disk, image/cache/volume đang chiếm; chỉ dọn phần đã xác định không dùng.                             |
-| Cổng bị chiếm                                    | Đổi cổng host tương ứng trong `.env` trước start hoặc xử lý đúng tiến trình đang dùng; không dừng stack khác tùy tiện.             |
-| CSV thiếu/sai header/permission                  | Kiểm tra đúng `DATASET_PATH`, bốn file trực tiếp và runtime UID 1000 đọc được; không giải nén thêm tầng thư mục.                   |
-| `Application source is not mounted`              | Khi không có job, chạy `make up` để áp bind mount ứng dụng.                                                                        |
-| Init `Exited (0)`                                | Bình thường; chỉ lỗi khi exit khác 0 hoặc service thường trực không healthy.                                                       |
-| Kafka `NOT_LEADER_FOR_PARTITION`                 | Mã hiện tại có refresh/retry; nếu lặp đến fail, xem broker/readiness/log mới và tài nguyên, không dùng script cũ trong clone khác. |
-| `Broker handle destroyed`                        | Kiểm tra đang chạy commit có sửa lifecycle AdminClient; xem log Kafka và smoke. Không reset volume để chữa lỗi lifecycle client.   |
-| `injected ... checkpoint commit` rồi suite `OK`  | Fault test chủ động; đọc kết quả cuối và resource/cleanup. `FAILED` hoặc exit khác 0 vẫn là lỗi phải xử lý.                        |
-| Build purchase lâu ở chặng 9/20                  | Xem `PURCHASE_DAY`, `progress.json`, Spark UI và resources; builder có 20 Spark chặng. Retry reuse ngày đã commit.                 |
-| Code SHA/Spark version khác snapshot             | Trở về mã/môi trường gốc để resume hoặc chủ động tạo identity/run mới; không sửa manifest/checkpoint để vượt check.                |
-| Thiếu `_SUCCESS`, checksum/count/fingerprint sai | Giữ log, xác định snapshot hỏng và khôi phục đúng bản; không tự xóa cả data lake hoặc overwrite published.                         |
-| Status trả score gốc sau apply                   | Đọc `policies/latest-policy-score.json`, truyền chính xác `SCORE_RUN_ID` mới.                                                      |
-| Policy passed nhưng eligible false               | Tác vụ chạy đúng nhưng mục tiêu không đạt; giữ score gốc và không apply.                                                           |
-| API indexes đã verified nhưng web không kết nối | Chạy và giữ `make api`; kiểm tra URL health/cổng, indexes không mở server. |
-| Thiếu venv/pip hoặc Python quá cũ | Dùng Python 3.11+ cho API; Ubuntu cài `python3-venv`/`python3-pip`; xem interpreter của `services/.venv/`. |
-| Web không thấy cluster/prediction | Chọn Phân khúc & dự đoán, thu gọn feed, chọn run ML có committed batch; dùng hướng dẫn web. |
-| Lọc nhãn Dự đoán mua rỗng | So score với ngưỡng policy, bỏ lọc để đọc toàn bộ visitor; không phải bằng chứng pipeline chưa score. |
-| `sleep length must be non-negative` trong live | Bản hiện tại sửa pacing và có test hồi quy. Cập nhật đúng mã; phiên khóa code cũ cần ID mới, không build/train lại. |
-| Live stale, registry vẫn running | Đối chiếu heartbeat, ACK/processed, stop request, Spark active application, report/log/resources; trạng thái registry có thể đã cũ. |
-| Live dừng ở lượt 2, lượt 1 đã completed | Giữ snapshot lượt 1; đối soát ACK còn dở ở lượt 2 và điều tra job trước khi resume; không đánh dấu toàn phiên passed từ một run con. |
+| Triệu chứng                                      | Kiểm tra và hành động                                                                                                                |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Không kết nối Docker / permission denied         | Đúng context, daemon/Desktop đang mở, Linux group hoặc WSL integration; chạy lại `docker info` trong chính terminal dùng Make.       |
+| `unknown command: docker buildx` sau reboot      | Kiểm tra plugin thực sự được cài, PATH/context và cùng môi trường CLI; Arch cài `docker-buildx`, WSL dùng CLI từ Desktop.            |
+| Thiếu khoảng 7 GiB khả dụng                      | Đóng ứng dụng/stack khác; WSL cấp đủ VM RAM và restart có kiểm soát; không hạ gate để vượt qua khi máy thiếu RAM thật.               |
+| Không đủ 30 GiB Docker disk                      | Kiểm tra Docker data/virtual disk, image/cache/volume đang chiếm; chỉ dọn phần đã xác định không dùng.                               |
+| Cổng bị chiếm                                    | Đổi cổng host tương ứng trong `.env` trước start hoặc xử lý đúng tiến trình đang dùng; không dừng stack khác tùy tiện.               |
+| CSV thiếu/sai header/permission                  | Kiểm tra đúng `DATASET_PATH`, bốn file trực tiếp và runtime UID 1000 đọc được; không giải nén thêm tầng thư mục.                     |
+| `Application source is not mounted`              | Khi không có job, chạy `make up` để áp bind mount ứng dụng.                                                                          |
+| Init `Exited (0)`                                | Bình thường; chỉ lỗi khi exit khác 0 hoặc service thường trực không healthy.                                                         |
+| Kafka `NOT_LEADER_FOR_PARTITION`                 | Mã hiện tại có refresh/retry; nếu lặp đến fail, xem broker/readiness/log mới và tài nguyên, không dùng script cũ trong clone khác.   |
+| `Broker handle destroyed`                        | Kiểm tra đang chạy commit có sửa lifecycle AdminClient; xem log Kafka và smoke. Không reset volume để chữa lỗi lifecycle client.     |
+| `injected ... checkpoint commit` rồi suite `OK`  | Fault test chủ động; đọc kết quả cuối và resource/cleanup. `FAILED` hoặc exit khác 0 vẫn là lỗi phải xử lý.                          |
+| Build purchase lâu ở chặng 9/20                  | Xem `PURCHASE_DAY`, `progress.json`, Spark UI và resources; builder có 20 Spark chặng. Retry reuse ngày đã commit.                   |
+| Code SHA/Spark version khác snapshot             | Trở về mã/môi trường gốc để resume hoặc chủ động tạo identity/run mới; không sửa manifest/checkpoint để vượt check.                  |
+| Thiếu `_SUCCESS`, checksum/count/fingerprint sai | Giữ log, xác định snapshot hỏng và khôi phục đúng bản; không tự xóa cả data lake hoặc overwrite published.                           |
+| Status trả score gốc sau apply                   | Đọc `policies/latest-policy-score.json`, truyền chính xác `SCORE_RUN_ID` mới.                                                        |
+| Policy passed nhưng eligible false               | Tác vụ chạy đúng nhưng mục tiêu không đạt; giữ score gốc và không apply.                                                             |
+| API indexes đã verified nhưng web không kết nối  | Chạy và giữ `make api`; kiểm tra URL health/cổng, indexes không mở server.                                                           |
+| Thiếu venv/pip hoặc Python quá cũ                | Dùng Python 3.11+ cho API; Ubuntu cài `python3-venv`/`python3-pip`; xem interpreter của `services/.venv/`.                           |
+| Web không thấy cluster/prediction                | Chọn Phân khúc & dự đoán, thu gọn feed, chọn run ML có committed batch; dùng hướng dẫn web.                                          |
+| Lọc nhãn Dự đoán mua rỗng                        | So score với ngưỡng policy, bỏ lọc để đọc toàn bộ visitor; không phải bằng chứng pipeline chưa score.                                |
+| `sleep length must be non-negative` trong live   | Bản hiện tại sửa pacing và có test hồi quy. Cập nhật đúng mã; phiên khóa code cũ cần ID mới, không build/train lại.                  |
+| Live stale, registry vẫn running                 | Đối chiếu heartbeat, ACK/processed, stop request, Spark active application, report/log/resources; trạng thái registry có thể đã cũ.  |
+| Live dừng ở lượt 2, lượt 1 đã completed          | Giữ snapshot lượt 1; đối soát ACK còn dở ở lượt 2 và điều tra job trước khi resume; không đánh dấu toàn phiên passed từ một run con. |
 
 Chi tiết thêm: [hạ tầng](infra/07-troubleshooting.md), [ingestion](data/03-ingestion.md), [prediction](ml/07-purchase-operations.md).
 
