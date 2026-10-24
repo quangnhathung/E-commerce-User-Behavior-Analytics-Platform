@@ -1,54 +1,64 @@
 # Kịch bản demo live 3 phút
 
-## 1. Tình trạng đã kiểm tra
+## 1. Kết quả phiên live đã xác nhận
 
-Dashboard đang phục vụ tại:
-
-```text
-http://127.0.0.1:5500/web/index.html
-```
-
-API local đang sẵn sàng:
-
-```json
-{ "status": "ready", "mongodb": true }
-```
-
-Các phiên live hiện có:
-
-- `demo-live-002`: trạng thái `stale`, không dùng để demo.
-- `demo-live-001`: `failed`, không dùng.
-- `live-check-002`: `completed`, 240 event đã ACK và 240 event đã xử lý.
-- `demo-live-002-000001`: snapshot hoàn tất, phù hợp để trình bày số liệu.
-
-Không chọn run con `demo-live-002-000002` vì hiện tại chưa có batch được commit.
-
-## 2. Phương án demo khuyến nghị
-
-Dùng snapshot:
+Phiên sử dụng cho demo:
 
 ```text
-demo-live-002-000001
+LIVE_ID: onboarding-live-003
 ```
 
-Batch hiện tại: `15`.
+Kết quả tổng phiên:
 
-Số liệu thực tế:
+- Trạng thái: `completed`.
+- Số lượt hoàn tất: `2`.
+- Tổng event đã ACK: `240`.
+- Tổng event đã Spark xử lý: `240`.
+- Backlog cuối phiên: `0`.
+- Không có OOM hoặc container restart.
+- Quan sát tài nguyên đầy đủ.
 
-- 1.000 event được xử lý.
-- 200 visitor.
-- 895 lượt xem.
-- 82 lượt thêm giỏ.
-- 23 transaction.
-- 13 buyer.
-- Buyer rate: 6,5%.
-- Funnel: 200 phiên xem → 57 phiên thêm giỏ → 13 phiên mua.
-- View → cart: 28,5%.
-- Cart → purchase: 22,8%.
-- K-Means: 2 cluster, lần lượt 108 và 92 visitor.
+Artifact xác nhận:
+
+```text
+artifacts/live/onboarding-live-003/report.json
+artifacts/live/onboarding-live-003/resources.json
+```
+
+Run dùng để trình bày trên Dashboard:
+
+```text
+onboarding-live-003-000002
+```
+
+Batch: `2`.
+
+## 2. Số liệu thực tế của snapshot dùng để demo
+
+Snapshot `onboarding-live-003-000002` có:
+
+- 120 event hợp lệ.
+- 24 visitor.
+- 100 lượt xem.
+- 16 lượt thêm giỏ.
+- 4 purchase event.
+- 4 transaction khác nhau.
+- 3 buyer.
+- Buyer rate: 12,5%.
+- Funnel: 24 phiên xem → 11 phiên thêm giỏ → 3 phiên mua.
+- View → cart: 45,83%.
+- Cart → purchase: 27,27%.
+- K-Means: 2 cluster, lần lượt 15 và 9 visitor.
 - Backlog: 0.
-- Spark worker: 2 worker.
-- Latency p95: 42,269 giây.
+- Accepted: 120.
+- Duplicate, invalid, late, foreign: đều bằng 0.
+- Spark worker: `spark-worker-1`, `spark-worker-2`.
+- Latency p95: 27,881 giây.
+- Batch cuối xử lý trong 13,045 giây.
+- Policy threshold: 0,96.
+- Prediction trong snapshot: 24 visitor được scoring; không visitor nào vượt threshold policy.
+
+Lưu ý: 120 event và các KPI trên là của run con `-000002`. Toàn bộ phiên live có 240 event vì gồm hai run con, `-000001` và `-000002`.
 
 ## 3. Chuẩn bị trước demo
 
@@ -87,7 +97,7 @@ http://127.0.0.1:5500/web/index.html
 
 Trên Dashboard:
 
-- Chọn **LƯỢT DỮ LIỆU**: `demo-live-002-000001`.
+- Chọn **LƯỢT DỮ LIỆU**: `onboarding-live-003-000002`.
 - Bật **Tự cập nhật KPI**.
 - Nếu Dashboard tự chuyển sang run live khác, tắt **Theo dõi live**.
 - Giữ cửa sổ ở màn hình **Tổng quan**.
@@ -98,19 +108,19 @@ Trên Dashboard:
 Mở Terminal B:
 
 ```bash
-make live-status LIVE_ID=live-check-002
+make live-status LIVE_ID=onboarding-live-003
 ```
 
 Không cần mở Terminal B trong lúc trình bày nếu Dashboard đã hiển thị feed đầy đủ.
 
-## 4. Nếu cần chạy một live session mới
+## 4. Cách chạy lại một phiên tương đương
 
-Không khởi động live session mới trong đúng 3 phút trình bày. Chạy trước buổi demo ít nhất 5 phút bằng một `LIVE_ID` mới:
+Không chạy lại `onboarding-live-003` vì phiên này đã có archive hoàn tất. Muốn tạo phiên mới, dùng một `LIVE_ID` chưa tồn tại và chạy trước buổi demo ít nhất 5 phút:
 
 ```bash
 make live-demo \
-  LIVE_ID=onboarding-live-003 \
-  RATE=10 \
+  LIVE_ID=onboarding-live-005 \
+  RATE=5 \
   LIVE_EVENTS=120 \
   LIVE_VISITORS=24 \
   LIVE_ITEMS=12 \
@@ -120,29 +130,29 @@ make live-demo \
 Sau đó trên Dashboard:
 
 1. Mở **Phiên live**.
-2. Chọn `onboarding-live-003`.
+2. Chọn `onboarding-live-005`.
 3. Bật **Theo dõi live**.
 4. Bật **Tự cập nhật KPI**.
 
-Khi cần quay về snapshot ổn định, tắt **Theo dõi live** rồi chọn `demo-live-002-000001`.
+Khi cần quay về snapshot ổn định, tắt **Theo dõi live** rồi chọn `onboarding-live-003-000002`.
 
 ## 5. Kịch bản nói và thao tác trong 3 phút
 
-| Thời gian | Thao tác                                                         | Nội dung nói                                                                                                                                                                                                              |
-| --------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0:00–0:15 | Mở Dashboard, chỉ vào tên hệ thống                               | “Đây là nền tảng phân tích hành vi người dùng thương mại điện tử. Hệ thống nhận event xem sản phẩm, thêm giỏ và mua hàng; xử lý qua Kafka và Spark; sau đó dùng K-Means và Random Forest để tạo insight.”                 |
-| 0:15–0:30 | Chọn `demo-live-002-000001`, chỉ vào Batch 15                    | “Đây là snapshot đã được Spark commit. Dashboard đọc cùng một run và cùng một batch nên KPI, funnel và prediction được đồng bộ.”                                                                                          |
-| 0:30–1:05 | Ở **Tổng quan**, chỉ vào KPI                                     | “Run này đã xử lý 1.000 event của 200 visitor, tạo ra 895 lượt xem, 82 lượt thêm giỏ, 23 transaction và 13 buyer. Buyer rate là 6,5%.”                                                                                    |
-| 1:05–1:25 | Chỉ vào biểu đồ và funnel                                        | “Funnel cho thấy 200 phiên có xem, 57 phiên đi tới bước thêm giỏ và 13 phiên đi tới bước mua. Tỷ lệ view-to-cart là 28,5%, còn cart-to-purchase là 22,8%.”                                                                |
-| 1:25–1:55 | Bấm **Phân khúc & dự đoán**, chỉ vào biểu đồ cluster             | “Từ feature hành vi bảy ngày, K-Means chia visitor thành hai nhóm. Nhóm thứ nhất có 108 visitor, nhóm thứ hai có 92 visitor. Các feature gồm lượt xem, thêm giỏ, giao dịch, số sản phẩm khác nhau và độ gần của hành vi.” |
-| 1:55–2:15 | Chỉ vào bảng prediction và threshold                             | “Random Forest tính điểm mua hàng cho từng visitor. Policy đang dùng ngưỡng 0,96 để ưu tiên precision. Đây là điểm xếp hạng phục vụ remarketing, không phải xác suất đã hiệu chuẩn.”                                      |
-| 2:15–2:40 | Bấm **Theo dõi pipeline**, chỉ vào Producer, Consumer và Scoring | “Producer đưa event vào Kafka, Spark Consumer xử lý theo micro-batch, sau đó Scoring cập nhật feature, cluster và prediction.”                                                                                            |
-| 2:40–2:52 | Chỉ vào backlog, counts và worker                                | “Backlog bằng 0 nghĩa là các event đã được Kafka xác nhận trong run này đã được Spark xử lý và commit. Run không có event trùng hoặc event không hợp lệ; hệ thống sử dụng hai Spark worker.”                              |
-| 2:52–3:00 | Quay lại Tổng quan hoặc chỉ vào live feed                        | “Như vậy hệ thống đã hoàn thành chuỗi từ event streaming đến KPI, funnel, phân khúc và dự đoán mua hàng trên một Dashboard thống nhất.”                                                                                   |
+| Thời gian | Thao tác                                                         | Nội dung nói                                                                                                                                                                                                                 |
+| --------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0:00–0:15 | Mở Dashboard, chỉ vào tên hệ thống                               | “Đây là nền tảng phân tích hành vi người dùng thương mại điện tử. Hệ thống nhận event xem sản phẩm, thêm giỏ và mua hàng; xử lý qua Kafka và Spark; sau đó dùng K-Means và Random Forest để tạo insight.”                    |
+| 0:15–0:30 | Chọn `onboarding-live-003-000002`, chỉ vào Batch 2               | “Đây là snapshot đã được Spark commit. Dashboard đọc cùng một run và cùng một batch nên KPI, funnel và prediction được đồng bộ.”                                                                                             |
+| 0:30–1:05 | Ở **Tổng quan**, chỉ vào KPI                                     | “Run này xử lý 120 event của 24 visitor, gồm 100 lượt xem, 16 lượt thêm giỏ, 4 transaction và 3 buyer. Buyer rate là 12,5%.”                                                                                                 |
+| 1:05–1:25 | Chỉ vào biểu đồ và funnel                                        | “Funnel cho thấy 24 phiên có xem, 11 phiên đi tới bước thêm giỏ và 3 phiên đi tới bước mua. View-to-cart là 45,83%, còn cart-to-purchase là 27,27%.”                                                                         |
+| 1:25–1:55 | Bấm **Phân khúc & dự đoán**, chỉ vào biểu đồ cluster             | “Từ feature hành vi bảy ngày, K-Means chia 24 visitor thành hai nhóm: nhóm thứ nhất có 15 visitor và nhóm thứ hai có 9 visitor. Các feature gồm lượt xem, thêm giỏ, giao dịch, số sản phẩm khác nhau và độ gần của hành vi.” |
+| 1:55–2:15 | Chỉ vào bảng prediction và threshold                             | “Random Forest tính điểm mua hàng cho từng visitor. Policy đang dùng ngưỡng 0,96 để ưu tiên precision. Đây là điểm xếp hạng phục vụ remarketing, không phải xác suất đã hiệu chuẩn.”                                         |
+| 2:15–2:40 | Bấm **Theo dõi pipeline**, chỉ vào Producer, Consumer và Scoring | “Producer đưa event vào Kafka, Spark Consumer xử lý theo micro-batch, sau đó Scoring cập nhật feature, cluster và prediction.”                                                                                               |
+| 2:40–2:52 | Chỉ vào backlog, counts và worker                                | “Backlog bằng 0, 120 event đều accepted, không có duplicate, invalid, late hoặc foreign event. Hai Spark worker đã tham gia xử lý.”                                                                                          |
+| 2:52–3:00 | Quay lại Tổng quan hoặc chỉ vào live feed                        | “Toàn bộ phiên live đã hoàn tất hai lượt, tổng cộng 240 event ACK và 240 event processed. Hệ thống đã đi từ event streaming đến insight trên Dashboard.”                                                                     |
 
 ## 6. Nhánh minh họa live feed
 
-Nếu phiên `live-check-002` hoặc phiên mới đang hiển thị trên Dashboard:
+Nếu phiên `onboarding-live-003` đang hiển thị trên Dashboard:
 
 1. Mở **Phiên live**.
 2. Chọn phiên đang chạy hoặc đã hoàn tất.
@@ -162,9 +172,9 @@ Nếu feed không hiển thị, bỏ qua nhánh này và tiếp tục phần Pip
 - Dashboard mở được qua Live Server.
 - API hiển thị `status=ready`.
 - Run được chọn là run completed.
-- KPI, funnel, prediction và pipeline cùng hiển thị cùng Batch 15.
+- KPI, funnel, prediction và pipeline cùng hiển thị cùng Batch 2.
 - Backlog hiển thị 0.
-- Không trình bày `demo-live-002-000002`, `demo-live-001` hoặc bất kỳ run nào có trạng thái `stale`/`failed`.
+- Không dùng `demo-live-002` đang `stale` hoặc `demo-live-001` đang `failed`.
 - Không chạy lại ingestion, train model hoặc replay trong lúc chấm.
 
 ## 8. Câu trả lời khi bị hỏi
