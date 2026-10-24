@@ -198,3 +198,28 @@ Nếu feed không hiển thị, bỏ qua nhánh này và tiếp tục phần Pip
 ### Hạn chế của hệ thống?
 
 “Live event dùng cửa sổ nghiệp vụ mô phỏng từ dataset RetailRocket. Prediction score là điểm xếp hạng; policy metrics là đánh giá trên dữ liệu đã quan sát.”
+
+## Các công nghệ được sử dụng
+
+| Lớp                   | Công nghệ                               | Vai trò                                     |
+| --------------------- | --------------------------------------- | ------------------------------------------- |
+| Dataset               | RetailRocket CSV                        | Dữ liệu hành vi thương mại điện tử          |
+| Event streaming       | Apache Kafka 3.9.1                      | Nhận, lưu và phân phối event                |
+| Stream processing     | Apache Spark Structured Streaming 3.5.7 | Xử lý event theo micro-batch                |
+| Batch processing      | Apache Spark / PySpark                  | Ingestion, feature và phân tích lịch sử     |
+| Lưu trữ phân tán      | Hadoop HDFS 3.4.2                       | Lưu Bronze, Silver, Gold và model           |
+| Cơ sở dữ liệu phục vụ | MongoDB 8.0                             | Lưu snapshot, registry, KPI, prediction     |
+| Machine Learning      | Spark MLlib                             | K-Means và Random Forest                    |
+| Backend API           | FastAPI + Uvicorn                       | Cung cấp API cho Dashboard                  |
+| Frontend              | HTML, CSS, JavaScript, SVG              | Hiển thị KPI, funnel, cluster và prediction |
+| Web server phát triển | VS Code Live Server                     | Phục vụ giao diện local                     |
+| Hạ tầng               | Docker Compose                          | Chạy Kafka, Spark, HDFS và MongoDB          |
+| Ngôn ngữ chính        | Python 3.11+                            | Job, API, ingestion và quản lý pipeline     |
+
+Điểm cần nhớ:
+
+- Kafka không tính KPI.
+- Spark không thay thế Kafka.
+- HDFS lưu dữ liệu phân tích lâu dài.
+- MongoDB phục vụ kết quả nhanh cho API.
+- FastAPI kết nối dữ liệu MongoDB với Dashboard.
